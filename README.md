@@ -63,3 +63,4 @@ Videos are saved to: ```examples/images/xx/trajectory.mp4```.
 
 - [ ] Set up and test continuous control tutorial 
 - [ ] Add baseline RL agent and test it
+- [ ] Fix baseline environment 
