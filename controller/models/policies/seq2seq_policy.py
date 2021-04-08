@@ -101,7 +101,10 @@ class Seq2SeqNet(Net):
             
         if "pointgoal" in observation_space.spaces:
             rnn_input_size += observation_space.spaces["pointgoal"].shape[0]
-            
+
+        if "heading" in observation_space.spaces:
+            rnn_input_size += observation_space.spaces["heading"].shape[0]
+        
         if model_config.SEQ2SEQ.use_prev_action:
             rnn_input_size += self.prev_action_embedding.embedding_dim
         
@@ -153,15 +156,21 @@ class Seq2SeqNet(Net):
         
         pointgoal_encoding = torch.zeros(
             [1, 2], dtype=torch.float32, device="cuda:0")
+        heading_encoding = torch.zeros(
+            [1, 2], dtype=torch.float32, device="cuda:0")
         if "pointgoal_with_gps_compass" in observations:
             pointgoal_encoding = observations["pointgoal_with_gps_compass"]
         elif "pointgoal" in observations:
             pointgoal_encoding = observations["pointgoal"]
+        
+        # @TODO: remove this
+        if "heading" in observations:
+            heading_encoding = observations["heading"]
 
         if self.model_config.ablate_pointgoal:
             pointgoal_encoding = pointgoal_encoding * 0.0
         
-        x = torch.cat([x, pointgoal_encoding], dim=1)
+        x = torch.cat([x, pointgoal_encoding, heading_encoding], dim=1)
     
         if self.model_config.SEQ2SEQ.use_prev_action:
             prev_actions_embedding = self.prev_action_embedding(
