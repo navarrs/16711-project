@@ -77,11 +77,12 @@ Videos are saved to: `examples/images/xx/trajectory.mp4`.
     export MAGNUM_LOG=quiet
     python run.py --exp-config config/rl_exp_cpu.yaml
 ```
- otherwise, use ```config/rl_exp_gpu.yaml```. 
+ otherwise, use ```config/rl_exp_gpu.yaml``` or to test a simple controller use ```config/simple_exp.yaml```
 
 3. It should create a directory ```out/controller``` containing videos like this one:
 
 <p align="center"> <img src="./readme/example.gif" width="600" /> </p>
+
 
 
 ## Relevant tutorials
