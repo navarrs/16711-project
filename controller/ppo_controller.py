@@ -42,7 +42,7 @@ class PPOController():
 
         self._device = (
             torch.device("cuda", self._config.TORCH_GPU_ID)
-            if torch.cuda.is_available()
+            if torch.cuda.is_available() and not self._config.USE_CPU
             else torch.device("cpu")
         )
 
@@ -108,7 +108,7 @@ class PPOController():
 
     def get_next_action(
         self, observations,
-        deterministic: Optional[bool] = False, dones: Optional[bool] = None
+        deterministic: Optional[bool] = False, **kwargs
     ) -> int:
         """
         Computes controller's next action
@@ -122,6 +122,7 @@ class PPOController():
         ------
             action
         """
+        dones = kwargs.get('dones', None)
         if not dones is None:
             self.update_masks(dones)
 

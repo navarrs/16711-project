@@ -24,8 +24,10 @@ def run_exp(exp_config: str) -> None:
         os.makedirs(config.VIDEO_DIR)
 
     with SimpleRLEnv(config=config) as env:
-        base = BaseController(
-            config, obs_space=env.observation_space, act_space=env.action_space)
+        base = BaseController(config, 
+                              obs_space=env.observation_space, 
+                              act_space=env.action_space,
+                              sim=env.habitat_env.sim)
 
         # ----------------------------------------------------------------------
         # Blackbox controller
@@ -45,11 +47,14 @@ def run_exp(exp_config: str) -> None:
             observations = [env.reset()]
             bb_controller.reset()
             dones = None
+            goal_pos = env.current_episode.goals[0].position
+            print(goal_pos)
+            
             while not env.habitat_env.episode_over:
 
                 # 1. Compute blackbox controller action
                 action = bb_controller.get_next_action(
-                    observations, deterministic=True, dones=dones)
+                    observations, deterministic=True, dones=dones, goal_pos=goal_pos)
 
                 # 2. @TODO: Compute future estimates
 

@@ -75,13 +75,13 @@ class Seq2SeqNet(Net):
                 observation_space, model_config.RGB_ENCODER.output_size
             )
         elif model_config.RGB_ENCODER.cnn_type == "TorchVisionResNet50":
-            device = (
+            self.device = (
                 torch.device("cuda", model_config.TORCH_GPU_ID)
-                if torch.cuda.is_available()
+                if torch.cuda.is_available() and not model_config.use_cpu
                 else torch.device("cpu")
             )
             self.rgb_encoder = TorchVisionResNet50(
-                observation_space, model_config.RGB_ENCODER.output_size, device
+                observation_space, model_config.RGB_ENCODER.output_size, self.device 
             )
 
         if model_config.SEQ2SEQ.use_prev_action:
@@ -155,9 +155,9 @@ class Seq2SeqNet(Net):
         x = torch.cat([depth_embedding, rgb_embedding], dim=1)
         
         pointgoal_encoding = torch.zeros(
-            [1, 2], dtype=torch.float32, device="cuda:0")
+            [1, 2], dtype=torch.float32, device=self.device)
         heading_encoding = torch.zeros(
-            [1, 2], dtype=torch.float32, device="cuda:0")
+            [1, 2], dtype=torch.float32, device=self.device)
         if "pointgoal_with_gps_compass" in observations:
             pointgoal_encoding = observations["pointgoal_with_gps_compass"]
         elif "pointgoal" in observations:

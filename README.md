@@ -11,10 +11,10 @@
 
 ### Dependencies
 
-Install [Habitat-Sim](https://github.com/facebookresearch/habitat-sim). You can either follow their installation instructions or install it with conda as:
+Install [Habitat-Sim](https://github.com/facebookresearch/habitat-sim) v0.1.6:
 
 ```
-   conda install -c aihabitat -c conda-forge habitat-sim headless
+   conda install -c aihabitat -c conda-forge habitat-sim=0.1.6 headless
 ```
 
 Install [Habitat-Lab](https://github.com/facebookresearch/habitat-lab/tree/v0.1.5) v0.1.5:
@@ -22,12 +22,16 @@ Install [Habitat-Lab](https://github.com/facebookresearch/habitat-lab/tree/v0.1.
 ```
    git submodule add git@github.com:facebookresearch/habitat-lab.git
    cd habitat-lab
-   git checkout stable
+   git checkout v0.1.5
    python -m pip install -r requirements.txt
    python -m pip install -r habitat_baselines/rl/requirements.txt
    python -m pip install -r habitat_baselines/rl/ddppo/requirements.txt
    python setup.py develop --all
 ```
+
+#### Note
+
+Download [these](https://drive.google.com/drive/u/0/folders/1XLQPFkO6xDjlMXJ5IGr-lIS0iIqrwWmh) folders to ```habitat-lab```.
 
 ### Test installation
 
@@ -67,14 +71,18 @@ Videos are saved to: `examples/images/xx/trajectory.mp4`.
 
 1. Download these [models](https://drive.google.com/drive/folders/1MRiQud5ld3R_Ogfs9xi4t-yRi4MY4nhv?usp=sharing) (they're about 50-140MB). 
 
-2. Run as:
+2. If you're using CPU run:
 ```
     export GLOG_minloglevel=2 
     export MAGNUM_LOG=quiet
-    python run.py --exp-config config/exp_1.yaml
+    python run.py --exp-config config/rl_exp_cpu.yaml
 ```
+ otherwise, use ```config/rl_exp_gpu.yaml```. 
 
-3. It should create a directory ```out/controller``` containing videos of the paths followed by the agent.  
+3. It should create a directory ```out/controller``` containing videos like this one:
+
+<p align="center"> <img src="./readme/example.gif" width="600" /> </p>
+
 
 ## Relevant tutorials
 
