@@ -8,41 +8,53 @@ import os
 from controller.models.policies.seq2seq_policy import Seq2SeqPolicy
 from gym import Space
 from habitat import logger
+from habitat_baselines.utils.common import batch_obs
 from habitat.config import Config
 from habitat_baselines.rl.ppo import PPO
 from typing import Optional, Union
 
 
 class PPOController():
+    @classmethod
+    def from_base(cls, controller):
+        return cls(
+            controller.config, controller.obs_space, controller.act_space)
+
     def __init__(
-        self,
-        config: Config,
+        self, config: Config,
         obs_space: Space,
         act_space: Space,
         stop_on_error: bool = True,
     ) -> None:
+        """
+        RL-based controller
+        Args
+        ----
+            config: yaml file with config params
+            obs_space: observation space. currently uses: DEPTH, RGB, POINTGOALS     
+            act_space: action space. currently uses MOVE_FORWARD, TURN_LEFT,
+                TURN_RIGHT, STOP
+            stop_on_error: unused
+        """
         self._config = config
         self._obs_space = obs_space
         self._act_space = act_space
 
-        # @TODO: add stop on error
         self._device = (
             torch.device("cuda", self._config.TORCH_GPU_ID)
-            if torch.cuda.is_available()
+            if torch.cuda.is_available() and not self._config.USE_CPU
             else torch.device("cpu")
         )
 
+        # @TODO: add stop on error ?
         self._stop_on_error = stop_on_error
 
-        # logger.add_filehandler(self._config.LOG_FILE)
-        # logger.info(f"Config:\n{self._config}")
-        self._build_follower()
+        self.build_controller()
 
-    def _build_follower(self) -> None:
-        rl_config = self._config.RL.PPO
-        self.setup_actor_critic_agent(self._config.RL)
-
-    def setup_actor_critic_agent(self, rl_config) -> None:
+    def build_controller(self) -> None:
+        """
+        Sets the controller up
+        """
         model_cfg = self._config.MODEL
         model_cfg.defrost()
         model_cfg.TORCH_GPU_ID = self._config.TORCH_GPU_ID
@@ -60,7 +72,7 @@ class PPOController():
 
         self._actor_critic.to(self._device)
 
-        ppo = rl_config.PPO
+        ppo = self._config.RL.PPO
         self._agent = PPO(
             actor_critic=self._actor_critic,
             clip_param=ppo.clip_param,
@@ -73,40 +85,68 @@ class PPOController():
             max_grad_norm=ppo.max_grad_norm,
             use_normalized_advantage=ppo.use_normalized_advantage,
         )
-        
-        ckpt_dict = torch.load(rl_config.ppo_checkpoint, map_location="cpu")
-        # self._actor_critic.load_state_dict(ckpt_dict["state_dict_ac"])
+
+        ckpt_dict = torch.load(
+            self._config.RL.ppo_checkpoint, map_location="cpu")
         self._agent.load_state_dict(ckpt_dict["state_dict_agent"])
         self._actor_critic = self._agent.actor_critic
+        self.reset()
 
-        # logger.info(f"Loaded weights from checkpoint: {ckpt_path}")
-        # logger.info("Finished setting up actor critic model.")
-        
-    def get_device(self) -> torch.device:
-        return self._device
+    def reset(self) -> None:
+        self._recurrent_hidden_states = torch.zeros(
+            self._actor_critic.net.num_recurrent_layers,
+            self._config.NUM_PROCESSES,
+            self._config.RL.PPO.hidden_size,
+            device=self._device
+        )
 
-    def get_actor_critic(self):
-        return self._actor_critic
+        self._prev_action = torch.zeros(
+            self._config.NUM_PROCESSES, 1, device=self._device, dtype=torch.long)
 
-    def get_agent(self):
-        return self._agent
+        self._not_done_masks = torch.zeros(
+            self._config.NUM_PROCESSES, 1, device=self._device)
 
     def get_next_action(
-        self, batch, recurrent_hidden_states,
-        prev_action, not_done_masks, deterministic=False
-    ) -> Optional[Union[int, np.array]]:
+        self, observations,
+        deterministic: Optional[bool] = False, **kwargs
+    ) -> int:
+        """
+        Computes controller's next action
+        Args
+        ----
+            observations: environment observations. need to match the observation 
+                space defined during initialization. 
+            deterministic: if True, samples actions sometimes. 
+            dones: done episodes
+        Return
+        ------
+            action
+        """
+        dones = kwargs.get('dones', None)
+        if not dones is None:
+            self.update_masks(dones)
+
+        batch = batch_obs(observations, device=self._device)
         self._actor_critic.eval()
         with torch.no_grad():
             (
                 _,
                 action,
                 _,
-                recurrent_hidden_states,
+                self._recurrent_hidden_states,
             ) = self._actor_critic.act(
                 batch,
-                recurrent_hidden_states,
-                prev_action,
-                not_done_masks,
+                self._recurrent_hidden_states,
+                self._prev_action,
+                self._not_done_masks,
                 deterministic=deterministic,
             )
-        return action, recurrent_hidden_states
+            self._prev_action = action
+        return action.item()
+
+    def update_masks(self, dones) -> None:
+        self._not_done_masks = torch.tensor(
+            [[0.0] if done else [1.0] for done in dones],
+            dtype=torch.float,
+            device=self._device,
+        )

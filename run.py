@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------#
-# @date     April 3, 2021                                                      #
-# @brief    rl controller test                                                 #
+# @date     april 3, 2021                                                      #
+# @brief    controller test                                                 #
 # -----------------------------------------------------------------------------#
 import argparse
 import habitat
@@ -9,14 +9,13 @@ import torch
 
 from controller.common.environments import SimpleRLEnv
 from controller.common.utils import resize, observations_to_image
-from controller.ppo_controller import PPOController
+from controller.controller import BaseController, ControllerType
 from habitat import logger
 from habitat.utils.visualizations.utils import images_to_video
 from habitat.sims.habitat_simulator.actions import HabitatSimActions
-from habitat_baselines.utils.common import batch_obs
 
 
-def run_controller(exp_config: str) -> None:
+def run_exp(exp_config: str) -> None:
     config = habitat.get_config(config_paths=exp_config)
     logger.add_filehandler(config.LOG_FILE)
     logger.info(config)
@@ -25,59 +24,56 @@ def run_controller(exp_config: str) -> None:
         os.makedirs(config.VIDEO_DIR)
 
     with SimpleRLEnv(config=config) as env:
+        base = BaseController(config, 
+                              obs_space=env.observation_space, 
+                              act_space=env.action_space,
+                              sim=env.habitat_env.sim)
 
-        rl_controller = PPOController(
-            config=config,
-            obs_space=env.observation_space,
-            act_space=env.action_space
-        )
-        device = rl_controller.get_device()
+        # ----------------------------------------------------------------------
+        # Blackbox controller
+        bb_controller = base.build_controller(ControllerType.BLACKBOX)
 
+        # ----------------------------------------------------------------------
+        # Fallback controller
+        # @TODO: add fallback controller
+        # fb_controller = base.build_controller(ControllerType.FALLBACK)
+
+        # ----------------------------------------------------------------------
         for i, episode in enumerate(env.episodes):
-
+            if (i+1) > config.NUM_EPISODES:
+                break
+            
             frames = []
             observations = [env.reset()]
-
-            test_recurrent_hidden_states = torch.zeros(
-                rl_controller.get_actor_critic().net.num_recurrent_layers,
-                config.NUM_PROCESSES,
-                config.RL.PPO.hidden_size,
-                device=device
-            )
-            prev_action = torch.zeros(
-                config.NUM_PROCESSES, 1, device=device, dtype=torch.long)
-
-            not_done_masks = torch.zeros(
-                config.NUM_PROCESSES, 1, device=device)
-
+            bb_controller.reset()
+            dones = None
+            goal_pos = env.current_episode.goals[0].position
+            print(goal_pos)
+            
             while not env.habitat_env.episode_over:
-                batch = batch_obs(observations, device=device)
 
-                (
-                    action,
-                    test_recurrent_hidden_states
-                ) = rl_controller.get_next_action(
-                    batch,
-                    test_recurrent_hidden_states,
-                    prev_action,
-                    not_done_masks,
-                    True  # this is going to sample actions
-                )
+                # 1. Compute blackbox controller action
+                action = bb_controller.get_next_action(
+                    observations, deterministic=True, dones=dones, goal_pos=goal_pos)
 
-                action = action.item()
+                # 2. @TODO: Compute future estimates
+
+                # 3. @TODO: Verify safety of reachable set
+                safe = True
+                if not safe:
+                    # 4. @TODO: Compute fallback controller action
+                    action = None
+
+                # 5. Take a step
                 observations = [env.step(action)]
                 observations, rewards, dones, infos = [
                     list(x) for x in zip(*observations)
                 ]
+
                 frame = observations_to_image(observations[0], infos[0])
                 frames.append(frame)
 
-                not_done_masks = torch.tensor(
-                    [[0.0] if done else [1.0] for done in dones],
-                    dtype=torch.float,
-                    device=device,
-                )
-            
+            # save episode
             if frames and len(config.VIDEO_OPTION) > 0:
                 frames = resize(frames)
                 images_to_video(
@@ -100,7 +96,7 @@ def main():
         help="path to config yaml containing info about experiment",
     )
     args = parser.parse_args()
-    run_controller(**vars(args))
+    run_exp(**vars(args))
 
 
 if __name__ == "__main__":
