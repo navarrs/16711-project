@@ -65,7 +65,7 @@ def run_exp(exp_config: str) -> None:
                     action = None
 
                 # 5. Take a step
-                observations = [env.step(action)]
+                observations = [env.step(action]
                 observations, rewards, dones, infos = [
                     list(x) for x in zip(*observations)
                 ]

@@ -113,9 +113,6 @@ if __name__ == "__main__":
     sim = habitat_sim.Simulator(cfg)
     agent_transform = place_agent(sim)
 
-    # get the primitive assets attributes manager
-    prim_templates_mgr = sim.get_asset_template_manager()
-
     # get the physics object attributes manager
     obj_templates_mgr = sim.get_object_template_manager()
 
