@@ -18,7 +18,7 @@ def make_configuration():
     # simulator configuration
     backend_cfg = habitat_sim.SimulatorConfiguration()
     backend_cfg.scene.id = os.path.join(
-        data_path, "scene_datasets/habitat-test-scenes/apartment_1.glb"
+        data_path, "habitat-test-scenes/apartment_1.glb"
     )
     assert os.path.exists(backend_cfg.scene.id)
     backend_cfg.enable_physics = True
@@ -106,7 +106,6 @@ class Sim():
         
         controlling_lin_vel = kwargs.get('controlling_lin_vel', None)
         if not controlling_lin_vel is None:
-            print(f"controlling lin_velocity")
             self._velocity_control.controlling_lin_vel = controlling_lin_vel
         
         controlling_ang_vel = kwargs.get('controlling_ang_vel', None)
@@ -162,11 +161,6 @@ sim.velocity_control(
     linear=[0, 0, 0.0], angular=[0.0, -1.25, 0], 
     controlling_lin_vel = True, controlling_ang_vel = True)
 observations += sim.step(dt=2.0)
-
-sim.velocity_control(
-    linear=[0, 0, 0.0], angular=[0.0, -1.25, 0], 
-    controlling_lin_vel = False, controlling_ang_vel = False)
-observations += sim.step(dt=3.0)
 
 vut.make_video(
     observations, "rgba_camera_1stperson", "color",
