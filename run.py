@@ -13,6 +13,11 @@ from controller.controller import BaseController, ControllerType
 from habitat import logger
 from habitat.utils.visualizations.utils import images_to_video
 from habitat.sims.habitat_simulator.actions import HabitatSimActions
+import safety_verify
+
+
+from matplotlib import pyplot as plt
+import numpy as np
 
 
 def run_exp(exp_config: str) -> None:
@@ -36,20 +41,27 @@ def run_exp(exp_config: str) -> None:
         # ----------------------------------------------------------------------
         # Fallback controller
         # @TODO: add fallback controller
-        # fb_controller = base.build_controller(ControllerType.FALLBACK)
+        fb_controller = base.build_controller(ControllerType.FALLBACK)
 
         # ----------------------------------------------------------------------
+        #Safety verification
+        verify = safety_verify.Verify(cell_size = .125)
+        verify.gen_primitive_lib(np.array([.25]), np.linspace(-np.pi/12,np.pi/12,3))
+        # ----------------------------------------------------------------------
+
+
         for i, episode in enumerate(env.episodes):
             if (i+1) > config.NUM_EPISODES:
                 break
             
             frames = []
             observations = [env.reset()]
+            infos = None
             bb_controller.reset()
             dones = None
             goal_pos = env.current_episode.goals[0].position
             print(goal_pos)
-            
+
             while not env.habitat_env.episode_over:
 
                 # 1. Compute blackbox controller action
@@ -59,6 +71,8 @@ def run_exp(exp_config: str) -> None:
                 # 2. @TODO: Compute future estimates
 
                 # 3. @TODO: Verify safety of reachable set
+
+                safe = verify.verify_safety(infos,3,action,verbose=False)
                 safe = True
                 if not safe:
                     # 4. @TODO: Compute fallback controller action
