@@ -1,8 +1,6 @@
 *data*
 *model_ckpt*
-*out*
-*habitat-sim*
-*habitat-lab*
+*out
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
