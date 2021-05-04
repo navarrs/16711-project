@@ -83,22 +83,27 @@ def run_exp(exp_config: str) -> None:
             scene_id = env.current_episode.scene_id
             episode_id = env.current_episode.episode_id
 
+            backup_is_done = True
+
             if "van-gogh" in scene_id:
                 continue
 
             while not env.habitat_env.episode_over:
 
-                # 1. Compute blackbox controller action
-                action = bb_controller.get_next_action(
-                    observations, deterministic=True, dones=dones, goal_pos=goal_pos)
+                if backup_is_done:
+                    # 1. Compute blackbox controller action
+                    action = bb_controller.get_next_action(
+                        observations, deterministic=True, dones=dones, goal_pos=goal_pos)
 
-                # 2. @TODO: Compute future estimates
+                    # 2. @TODO: Compute future estimates
 
-                # 3. Verify safety of reachable set
-                safe = verify.verify_safety(infos, 6, action, verbose=False)
+                    # 3. Verify safety of reachable set
+                    safe = verify.verify_safety(infos, 6, action, verbose=False)
+
+                safe = False
                 if not safe and config.CONTROLLERS.use_fallback:
                     # 4. Compute fallback controller action
-                    action = fb_controller.get_next_action(observations)
+                    action, backup_is_done = fb_controller.get_next_action(observations)
 
                 # 5. Take a step
                 observations = [env.step(action)]
@@ -133,15 +138,17 @@ def run_exp(exp_config: str) -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--exp-config",
-        type=str,
-        required=True,
-        help="path to config yaml containing info about experiment",
-    )
-    args = parser.parse_args()
-    run_exp(**vars(args))
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument(
+    #     "--exp-config",
+    #     type=str,
+    #     required=True,
+    #     help="path to config yaml containing info about experiment",
+    # )
+    # args = parser.parse_args()
+    # run_exp(**vars(args))
+
+    run_exp("config/simple_exp.yaml")
 
 
 if __name__ == "__main__":
