@@ -24,21 +24,19 @@ def unroll_results(observations, results, action):
     observations, rewards, dones, infos = [
         list(x) for x in zip(*observations)
     ]
-    for k, v in infos[0].items():
-        if k in BLACK_LIST:
-            continue
-        
-        if "collisions" in k:
-            if results.get("collision_count") == None:
-                results["collision_count"] = []
-            results["collision_count"].append(v["count"])
-        elif "success" in k and action == HabitatSimActions.STOP:
-            if results.get(k) == None:
-                results[k] = []
-        else:   
-            if results.get(k) == None:
-                results[k] = []
-            results[k].append(v)
+    
+    if action == HabitatSimActions.STOP:
+        for k, v in infos[0].items():
+            if k in BLACK_LIST:
+                continue
+            if "collisions" in k:
+                if results.get("collision_count") == None:
+                    results["collision_count"] = []
+                results["collision_count"].append(v["count"])
+            else:   
+                if results.get(k) == None:
+                    results[k] = []
+                results[k].append(v)
     return observations, results, dones, infos
 
 def run_exp(exp_config: str) -> None:
@@ -118,14 +116,14 @@ def run_exp(exp_config: str) -> None:
                     logger.info(f"\t -- avg. {k}: {np.asarray(np.mean(v))}")
                     
             # save episode
-            if frames and len(config.VIDEO_OPTION) > 0:
-                if config.CONTROLLERS.use_fallback:
-                    file = f"{i}_episode_id={episode_id}_with_fallback"
-                else:
-                    file = f"{i}_episode_id={episode_id}"
+            # if frames and len(config.VIDEO_OPTION) > 0:
+            #     if config.CONTROLLERS.use_fallback:
+            #         file = f"{i}_episode_id={episode_id}_with_fallback"
+            #     else:
+            #         file = f"{i}_episode_id={episode_id}"
 
-                frames = resize(frames)
-                images_to_video(frames, config.VIDEO_DIR, file)
+            #     frames = resize(frames)
+            #     images_to_video(frames, config.VIDEO_DIR, file)
         
         logger.info(f"Done. Metrics for {i+1} episodes")
         for k, v in results.items():
