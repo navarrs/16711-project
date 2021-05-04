@@ -73,10 +73,13 @@ def run_exp(exp_config: str) -> None:
                 # 2. @TODO: Compute future estimates
 
                 # 3. Verify safety of reachable set
-                safe = verify.verify_safety(infos,3,action,verbose=False)
+                safe = verify.verify_safety(infos,6,action, verbose=False)
                 if not safe and config.CONTROLLERS.use_fallback:
                     # 4. Compute fallback controller action
-                    action = fb_controller.get_next_action(observations)
+                    action_fb = fb_controller.get_next_action(observations)
+                    if not action_fb == action:
+                        print(f"fallback corrected action")
+                    
 
                 # 5. Take a step
                 observations = [env.step(action)]
