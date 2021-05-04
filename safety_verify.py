@@ -63,8 +63,9 @@ class Verify:
                             open_set[:, :, i], self.primitive_lib[:, :, j])
                         p = new_pose[:2, 2].astype(int).flatten()
                         index = (p[0], p[1])
+                        
                         # print(index)
-                        if collision_map[index] == 0:
+                        if index[0] < 0 or index[0] >= collision_map.shape[0] or index[1] < 0 or index[1] >= collision_map.shape[1] or collision_map[index] == 0:
                             num_collisions += branching_factor**(T-t-1)
                         else:
                             new_open_set.append(new_pose)
