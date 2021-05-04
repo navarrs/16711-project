@@ -138,17 +138,17 @@ def run_exp(exp_config: str) -> None:
 
 
 def main():
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument(
-    #     "--exp-config",
-    #     type=str,
-    #     required=True,
-    #     help="path to config yaml containing info about experiment",
-    # )
-    # args = parser.parse_args()
-    # run_exp(**vars(args))
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--exp-config",
+        type=str,
+        required=True,
+        help="path to config yaml containing info about experiment",
+    )
+    args = parser.parse_args()
+    run_exp(**vars(args))
 
-    run_exp("config/simple_exp.yaml")
+    # run_exp("config/simple_exp.yaml")
 
 
 if __name__ == "__main__":
