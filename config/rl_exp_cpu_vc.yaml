@@ -111,6 +111,7 @@ ROBOT:
   config: data/objects/locobot_merged
 # ------------------------------------------------------------------------------
 CONTROLLERS:
+  use_fallback: True
   blackbox_id: "ppo_controller"
   fallback_id: "todo"
 # ------------------------------------------------------------------------------
