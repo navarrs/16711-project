@@ -2,7 +2,7 @@
 ENVIRONMENT:
   MAX_EPISODE_STEPS: 500
   ITERATOR_OPTIONS:
-    SHUFFLE: True
+    SHUFFLE: False
 # ------------------------------------------------------------------------------
 SIMULATOR:
   TYPE: Sim-v0
@@ -46,7 +46,7 @@ TASK:
 # ------------------------------------------------------------------------------
 DATASET:
   TYPE: PointNav-v1
-  SPLIT: train
+  SPLIT: test
   DATA_PATH: habitat-lab/data/datasets/pointnav/habitat-test-scenes/v1/{split}/{split}.json.gz
   SCENES_DIR: habitat-lab/data/scene_datasets/
 # ------------------------------------------------------------------------------
@@ -101,8 +101,9 @@ MODEL:
     alpha: 1.0  # loss multiplier
 # ------------------------------------------------------------------------------
 CONTROLLERS:
+  use_fallback: True
   blackbox_id: "ppo_controller"
-  fallback_id: "todo"
+  fallback_id: "simple_unit_controller"
 # ------------------------------------------------------------------------------
 SIMULATOR_GPU_ID: 0
 USE_CPU: False

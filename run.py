@@ -40,28 +40,30 @@ def run_exp(exp_config: str) -> None:
 
         # ----------------------------------------------------------------------
         # Fallback controller
-        # @TODO: add fallback controller
         fb_controller = base.build_controller(ControllerType.FALLBACK)
 
         # ----------------------------------------------------------------------
-        #Safety verification
+        # Safety verification
         verify = safety_verify.Verify(cell_size = .125)
         verify.gen_primitive_lib(np.array([.25]), np.linspace(-np.pi/12,np.pi/12,3))
+        
         # ----------------------------------------------------------------------
-
-
+        # Running episodes
         for i, episode in enumerate(env.episodes):
             if (i+1) > config.NUM_EPISODES:
                 break
             
             frames = []
             observations = [env.reset()]
-            infos = None
             bb_controller.reset()
+            infos = None
             dones = None
             goal_pos = env.current_episode.goals[0].position
-            print(goal_pos)
-
+            scene_id = env.current_episode.scene_id
+            
+            if "van-gogh" in scene_id:
+                continue
+        
             while not env.habitat_env.episode_over:
 
                 # 1. Compute blackbox controller action
@@ -70,13 +72,11 @@ def run_exp(exp_config: str) -> None:
 
                 # 2. @TODO: Compute future estimates
 
-                # 3. @TODO: Verify safety of reachable set
-
+                # 3. Verify safety of reachable set
                 safe = verify.verify_safety(infos,3,action,verbose=False)
-                safe = True
-                if not safe:
-                    # 4. @TODO: Compute fallback controller action
-                    action = None
+                if not safe and config.CONTROLLERS.use_fallback:
+                    # 4. Compute fallback controller action
+                    action = fb_controller.get_next_action(observations)
 
                 # 5. Take a step
                 observations = [env.step(action)]

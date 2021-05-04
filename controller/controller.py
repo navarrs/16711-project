@@ -53,12 +53,10 @@ class BaseController():
         elif controller_id == "simple_controller":
             controller = SimpleController(
                 self._config, self._sim)
-            
-        # @TODO: add other controllers 
         elif controller_id == "simple_unit_controller":
             controller = SimpleUnitController(
                 self._config, self._sim)
         
         logger.info(
-            f"Initialized {ControllerType.BLACKBOX} with id: {controller_id}")
+            f"Initialized {controller_type} with id: {controller_id}")
         return controller    
