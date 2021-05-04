@@ -139,17 +139,17 @@ config = make_configuration()
 sim = Sim(config)
 
 sim.velocity_control(
-    linear=[0, 0, -1.0], angular=[0.0, 2.0, 0])
+    linear=[0, 0, 0.0], angular=[0.0, 0.0, 0])
 observations = sim.step(dt=1.5)
 
 sim.velocity_control(
-    linear=[0, 0, -1.0], angular=[0.0, 2.0, 0], 
+    linear=[0, 0, -1.5], angular=[0.0, 0.0, 2.0], 
     controlling_lin_vel = True, controlling_ang_vel = True,
     lin_vel_is_local = True, ang_vel_is_local = True)
 observations += sim.step(dt=1.0)
 
 sim.velocity_control(
-    linear=[0, 0, 0.0], angular=[0.0, 1.0, 0], controlling_lin_vel = False)
+    linear=[0, 0, 1.5], angular=[0.0, 3.0, 0], controlling_lin_vel = False)
 observations += sim.step(dt=1.5)
 
 sim.velocity_control(

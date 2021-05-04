@@ -56,6 +56,10 @@ DATASET:
   DATA_PATH: habitat-lab/data/datasets/pointnav/habitat-test-scenes/v1/{split}/{split}.json.gz
   SCENES_DIR: habitat-lab/data/scene_datasets/
 # ------------------------------------------------------------------------------
+ROBOT:
+  velocity_control: True
+  config: data/objects/locobot_merged
+# ------------------------------------------------------------------------------
 CONTROLLERS:
   blackbox_id: "simple_controller"
   fallback_id: "todo"

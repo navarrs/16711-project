@@ -4,7 +4,10 @@
 # -----------------------------------------------------------------------------#
 import argparse
 import habitat
+import habitat_sim
 import os
+import magnum as mn
+import numpy as np
 import torch
 
 from controller.common.environments import SimpleRLEnv
@@ -38,6 +41,14 @@ def run_exp(exp_config: str) -> None:
         # @TODO: add fallback controller
         # fb_controller = base.build_controller(ControllerType.FALLBACK)
 
+        vc = habitat_sim.physics.VelocityControl()
+        if config.ROBOT.velocity_control:
+            vc.controlling_lin_vel = True
+            vc.lin_vel_is_local = True
+            vc.controlling_ang_vel = True
+            vc.ang_vel_is_local = True
+            vc.linear_velocity = np.array([0, 0, 1.0])
+        
         # ----------------------------------------------------------------------
         for i, episode in enumerate(env.episodes):
             if (i+1) > config.NUM_EPISODES:
@@ -48,14 +59,15 @@ def run_exp(exp_config: str) -> None:
             bb_controller.reset()
             dones = None
             goal_pos = env.current_episode.goals[0].position
-            print(goal_pos)
             
             while not env.habitat_env.episode_over:
 
                 # 1. Compute blackbox controller action
                 action = bb_controller.get_next_action(
                     observations, deterministic=True, dones=dones, goal_pos=goal_pos)
-
+                
+                # @TODO: convert this to vel_control 
+                
                 # 2. @TODO: Compute future estimates
 
                 # 3. @TODO: Verify safety of reachable set
@@ -65,7 +77,7 @@ def run_exp(exp_config: str) -> None:
                     action = None
 
                 # 5. Take a step
-                observations = [env.step(action]
+                observations = [env.step(action)]
                 observations, rewards, dones, infos = [
                     list(x) for x in zip(*observations)
                 ]

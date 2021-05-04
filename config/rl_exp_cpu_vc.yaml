@@ -107,7 +107,8 @@ MODEL:
     alpha: 1.0  # loss multiplier
 # ------------------------------------------------------------------------------
 ROBOT:
-  config: config/robot/locobot
+  velocity_control: True
+  config: data/objects/locobot_merged
 # ------------------------------------------------------------------------------
 CONTROLLERS:
   blackbox_id: "ppo_controller"

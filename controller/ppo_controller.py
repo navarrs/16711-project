@@ -15,11 +15,6 @@ from typing import Optional, Union
 
 
 class PPOController():
-    @classmethod
-    def from_base(cls, controller):
-        return cls(
-            controller.config, controller.obs_space, controller.act_space)
-
     def __init__(
         self, config: Config,
         obs_space: Space,

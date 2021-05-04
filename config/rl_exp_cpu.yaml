@@ -44,6 +44,10 @@ TASK:
   SUCCESS:
     SUCCESS_DISTANCE: 3.0
 # ------------------------------------------------------------------------------
+ROBOT:
+  velocity_control: False
+  config: data/objects/locobot_merged
+# ------------------------------------------------------------------------------
 DATASET:
   TYPE: PointNav-v1
   SPLIT: train
