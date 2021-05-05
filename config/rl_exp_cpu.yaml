@@ -102,7 +102,8 @@ MODEL:
 # ------------------------------------------------------------------------------
 CONTROLLERS:
   blackbox_id: "ppo_controller"
-  fallback_id: "todo"
+  fallback_id: "simple_obstacle_avoider"
+  use_fallback: True
 # ------------------------------------------------------------------------------
 SIMULATOR_GPU_ID: 0
 USE_CPU: True

@@ -16,8 +16,9 @@ from habitat_baselines.rl.ppo import PPO
 from typing import Optional, Union
 
 from controller.simple_unit_controller import SimpleUnitController
+from controller.simple_obstacle_avoider import SimpleObstacleAvoider
 
-SUPPORTED_CONTROLLERS = ["simple_controller", "ppo_controller", "simple_unit_controller"]
+SUPPORTED_CONTROLLERS = ["simple_controller", "ppo_controller", "simple_unit_controller", "simple_obstacle_avoider"]
 
 class ControllerType(Enum):
     BLACKBOX = 0
@@ -56,7 +57,11 @@ class BaseController():
         elif controller_id == "simple_unit_controller":
             controller = SimpleUnitController(
                 self._config, self._sim)
-        
+        elif controller_id == "simple_obstacle_avoider":
+            controller = SimpleObstacleAvoider(
+                self._config, self._sim)
+                
+                        
         logger.info(
             f"Initialized {controller_type} with id: {controller_id}")
         return controller    

@@ -30,7 +30,6 @@ class SimpleUnitController():
         """
         self._config = config 
         self._stop_on_error = stop_on_error
-        self._proximity_threshold = 0.05 #25 # Depth units TODO 
         self._proximity_threshold = 0.05     # Depth units TODO
         self._turn_threshold = np.radians(8) # Threshold used to determine if straight or turn is better 
         self._goal_radius = 0.25             # How close the agent needs to be to the waypoint
@@ -110,12 +109,6 @@ class SimpleUnitController():
             else:
                 self._action_queue.extend(([HabitatSimActions.TURN_RIGHT] * numTurns))
 
-        deleteme = True
-        if len(self._action_queue) == 0:
-            print("Filled without filling!")
-            print("PHI: ", phi)
-            print("numTurns: ", numTurns)
-
 
     def get_next_action(self, 
                          observations,
@@ -127,7 +120,6 @@ class SimpleUnitController():
 
             Returns an action and a flag to signify that the queue is/isnt empty
         """
-        pass 
 
         if not (len(self._action_queue) == 0):
             return self.empty_queue()
