@@ -90,9 +90,9 @@ class Verify:
                         
                         if index[0] < 1 or index[0] >= collision_map.shape[0] - 1 or index[1] < 1 or index[1] >= collision_map.shape[1] - 1:
                             num_collisions += branching_factor**(T-t-1)
-                        elif collision_map[index] == 0:
+                        elif collision_map[index] == 0 or collision_map[index] == 12:
                             num_collisions += branching_factor**(T-t-1)
-                            out_map[index] = 7
+                            out_map[index] = 12
                             # out_map = setSquare(index, out_map, 7)
                             # print(index)
                             # logger.info(f"in collision")
