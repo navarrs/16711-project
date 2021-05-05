@@ -21,7 +21,7 @@ SIMULATOR:
 # ------------------------------------------------------------------------------
 TASK:
   TYPE: Nav-v0
-  SUCCESS_DISTANCE: 3.0
+  SUCCESS_DISTANCE: 1.0
   SENSORS: [
     POINTGOAL_WITH_GPS_COMPASS_SENSOR,
     HEADING_SENSOR,
@@ -43,7 +43,7 @@ TASK:
     COLLISIONS
   ]
   SUCCESS:
-    SUCCESS_DISTANCE: 3.0
+    SUCCESS_DISTANCE: 1.0
   COLLISION_DISTANCE:
     TYPE: "CollisionDistance"
 # ------------------------------------------------------------------------------

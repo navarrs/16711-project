@@ -21,7 +21,7 @@ from matplotlib import pyplot as plt
 BLACK_LIST = ["top_down_map", "fog_of_war_mask", "agent_map_coord"]
 
 
-def unroll_results(observations, results, action, fallback_takeover):
+def get_results(observations, results, action, fallback_takeover, sim):
     observations, rewards, dones, infos = [
         list(x) for x in zip(*observations)
     ]
@@ -37,6 +37,12 @@ def unroll_results(observations, results, action, fallback_takeover):
                 if results.get(k) == None:
                     results[k] = []
                 results[k].append(v)
+    if results.get("collision_distance") == None:
+        results["collision_disance"] = []
+    
+    collision_distance = sim.distance_to_closest_obstacle(
+        sim.get_agent_state().position, 1.0)
+    results["collision_distance"].append(collision_distance)
 
     infos[0]["fallback_takeover"] = fallback_takeover
     return observations, results, dones, infos
@@ -73,6 +79,7 @@ def run_exp(exp_config: str) -> None:
         # ----------------------------------------------------------------------
         # Running episodes
         results = {}
+        results["collision_distance"] = []
         for i, episode in enumerate(env.episodes):
             if (i+1) > config.NUM_EPISODES:
                 break
@@ -114,8 +121,13 @@ def run_exp(exp_config: str) -> None:
                 observations = [env.step(action)]
 
                 # 6. Unroll results
-                observations, results, dones, infos = unroll_results(
-                    observations, results, action, fallback_takeover)
+                observations, results, dones, infos = get_results(
+                    observations, 
+                    results, 
+                    action, 
+                    fallback_takeover,
+                    env.habitat_env.sim
+                )
 
                 if is_valid_map:
                     infos[0]["top_down_map"]["map"] = top_down_map
