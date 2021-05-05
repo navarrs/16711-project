@@ -20,11 +20,11 @@ from matplotlib import pyplot as plt
 
 BLACK_LIST = ["top_down_map", "fog_of_war_mask", "agent_map_coord"]
 
-def unroll_results(observations, results, action):
+
+def unroll_results(observations, results, action, fallback_takeover):
     observations, rewards, dones, infos = [
         list(x) for x in zip(*observations)
     ]
-    
     if action == HabitatSimActions.STOP:
         for k, v in infos[0].items():
             if k in BLACK_LIST:
@@ -33,11 +33,14 @@ def unroll_results(observations, results, action):
                 if results.get("collision_count") == None:
                     results["collision_count"] = []
                 results["collision_count"].append(v["count"])
-            else:   
+            else:
                 if results.get(k) == None:
                     results[k] = []
                 results[k].append(v)
+
+    infos[0]["fallback_takeover"] = fallback_takeover
     return observations, results, dones, infos
+
 
 def run_exp(exp_config: str) -> None:
     config = habitat.get_config(config_paths=exp_config)
@@ -85,33 +88,37 @@ def run_exp(exp_config: str) -> None:
 
             backup_is_done = True
 
-            if "van-gogh" in scene_id:
-                continue
-
             while not env.habitat_env.episode_over:
+                fallback_takeover = False
 
                 if backup_is_done:
                     # 1. Compute blackbox controller action
                     action = bb_controller.get_next_action(
-                        observations, deterministic=True, dones=dones, goal_pos=goal_pos)
+                        observations, deterministic=False, dones=dones, goal_pos=goal_pos)
 
                     # 2. @TODO: Compute future estimates
 
                     # 3. Verify safety of reachable set
-                    safe, top_down_map = verify.verify_safety(infos, 6, action, verbose=False)
+                    safe, is_valid_map, top_down_map = verify.verify_safety(
+                        infos, 6, action, verbose=False)
 
-                safe = False
+                # safe = False
                 if not safe and config.CONTROLLERS.use_fallback:
                     # 4. Compute fallback controller action
-                    action, backup_is_done = fb_controller.get_next_action(observations)
+                    action, backup_is_done = fb_controller.get_next_action(
+                        observations)
+                    fallback_takeover = True
 
                 # 5. Take a step
                 observations = [env.step(action)]
-                
+
                 # 6. Unroll results
                 observations, results, dones, infos = unroll_results(
-                    observations, results, action)
-                
+                    observations, results, action, fallback_takeover)
+
+                if is_valid_map:
+                    infos[0]["top_down_map"]["map"] = top_down_map
+
                 frame = observations_to_image(observations[0], infos[0])
                 frames.append(frame)
 
@@ -119,21 +126,21 @@ def run_exp(exp_config: str) -> None:
                 logger.info(f"Metrics for {i+1} episodes")
                 for k, v in results.items():
                     logger.info(f"\t -- avg. {k}: {np.asarray(np.mean(v))}")
-                    
-            # save episode
-            # if frames and len(config.VIDEO_OPTION) > 0:
-            #     if config.CONTROLLERS.use_fallback:
-            #         file = f"{i}_episode_id={episode_id}_with_fallback"
-            #     else:
-            #         file = f"{i}_episode_id={episode_id}"
 
-            #     frames = resize(frames)
-            #     images_to_video(frames, config.VIDEO_DIR, file)
-        
+            # save episode
+            if frames and len(config.VIDEO_OPTION) > 0:
+                if config.CONTROLLERS.use_fallback:
+                    file = f"{i}_episode_id={episode_id}_with_fallback"
+                else:
+                    file = f"{i}_episode_id={episode_id}"
+
+                frames = resize(frames)
+                images_to_video(frames, config.VIDEO_DIR, file)
+
         logger.info(f"Done. Metrics for {i+1} episodes")
         for k, v in results.items():
             logger.info(f"\t -- avg. {k}: {np.asarray(np.mean(v))}")
-            
+
         env.close()
 
 

@@ -104,7 +104,7 @@ MODEL:
     alpha: 1.0  # loss multiplier
 # ------------------------------------------------------------------------------
 CONTROLLERS:
-  use_fallback: False
+  use_fallback: True
   blackbox_id: "ppo_controller"
   fallback_id: "simple_unit_controller"
 # ------------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 import numpy as np
-
+from habitat import logger
+import matplotlib.pyplot as plt
 
 def SO2Rotation(theta):
     return(np.array([[np.cos(theta), -np.sin(theta)],
@@ -70,20 +71,27 @@ class Verify:
                             num_collisions += branching_factor**(T-t-1)
                         elif collision_map[index] == 0:
                             num_collisions += branching_factor**(T-t-1)
-                            out_map[index] = 8
+                            out_map[index] = 10
+                            # logger.info(f"in collision")
                         else:
                             new_open_set.append(new_pose)
-                            out_map[index] = 9
+                            out_map[index] = 0
                 if len(new_open_set) == 0:
                     break
                 elif len(new_open_set) == 1:
                     open_set = new_open_set[0].reshape((3, 3, 1))
                 else:
                     open_set = np.dstack(new_open_set)
-
             prob = num_collisions/(branching_factor**T)
+            
+            # plt.matshow(collision_map)
+            # plt.show()
+            
+            # plt.matshow(out_map)
+            # plt.show()
+            
             if verbose:
                 print("Collision probability: ", prob)
-            return(prob < threshold, out_map)
+            return(prob < threshold, True, out_map)
         else:
-            return(True, np.zeros((1,1)))
+            return(True, False, np.zeros((1,1)))
