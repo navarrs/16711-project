@@ -41,6 +41,7 @@ class Verify:
             # print(infos[0]['top_down_map']['agent_map_coord'],infos[0]['top_down_map']['agent_angle'])
 
             collision_map = infos[0]['top_down_map']['map']
+            out_map = np.copy(collision_map)
             branching_factor = self.primitive_lib.shape[2]
             currentpose = SE2Transformation(
                 infos[0]['top_down_map']['agent_map_coord'], infos[0]['top_down_map']['agent_angle'])
@@ -65,10 +66,14 @@ class Verify:
                         index = (p[0], p[1])
                         
                         # print(index)
-                        if index[0] < 0 or index[0] >= collision_map.shape[0] or index[1] < 0 or index[1] >= collision_map.shape[1] or collision_map[index] == 0:
+                        if index[0] < 0 or index[0] >= collision_map.shape[0] or index[1] < 0 or index[1] >= collision_map.shape[1]:
                             num_collisions += branching_factor**(T-t-1)
+                        elif collision_map[index] == 0:
+                            num_collisions += branching_factor**(T-t-1)
+                            out_map[index] = 8
                         else:
                             new_open_set.append(new_pose)
+                            out_map[index] = 9
                 if len(new_open_set) == 0:
                     break
                 elif len(new_open_set) == 1:
@@ -79,6 +84,6 @@ class Verify:
             prob = num_collisions/(branching_factor**T)
             if verbose:
                 print("Collision probability: ", prob)
-            return(prob < threshold)
+            return(prob < threshold, out_map)
         else:
-            return(True)
+            return(True, np.zeros((1,1)))
