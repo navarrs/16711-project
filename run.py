@@ -98,7 +98,7 @@ def run_exp(exp_config: str) -> None:
                     # 2. @TODO: Compute future estimates
 
                     # 3. Verify safety of reachable set
-                    safe = verify.verify_safety(infos, 6, action, verbose=False)
+                    safe, top_down_map = verify.verify_safety(infos, 6, action, verbose=False)
 
                 safe = False
                 if not safe and config.CONTROLLERS.use_fallback:
