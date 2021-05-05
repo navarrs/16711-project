@@ -94,7 +94,8 @@ def run_exp(exp_config: str) -> None:
                 if backup_is_done:
                     # 1. Compute blackbox controller action
                     action = bb_controller.get_next_action(
-                        observations, deterministic=False, dones=dones, goal_pos=goal_pos)
+                        observations, deterministic=False, dones=dones, 
+                        goal_pos=goal_pos)
 
                     # 2. @TODO: Compute future estimates
 
@@ -154,9 +155,6 @@ def main():
     )
     args = parser.parse_args()
     run_exp(**vars(args))
-
-    # run_exp("config/simple_exp.yaml")
-
 
 if __name__ == "__main__":
     main()
