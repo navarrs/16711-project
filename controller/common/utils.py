@@ -30,7 +30,6 @@ def observations_to_image(observation: Dict, info: Dict) -> np.ndarray:
     """
     egocentric_view = []
     observation_size = -1
-    text = "state: "
     
     if "rgb" in observation:
         observation_size = observation["rgb"].shape[0]
@@ -54,11 +53,12 @@ def observations_to_image(observation: Dict, info: Dict) -> np.ndarray:
     egocentric_view = np.concatenate(egocentric_view, axis=1)
 
     # draw collision
+    text = "state="
     if "collisions" in info and info["collisions"]["is_collision"]:
         egocentric_view = draw_collision(egocentric_view)
-        text += " collision "
+        text += "collision "
     else:
-        text += " no-collision "
+        text += "no-collision "
         
     frame = egocentric_view
 

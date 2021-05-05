@@ -101,7 +101,7 @@ def run_exp(exp_config: str) -> None:
                 if backup_is_done:
                     # 1. Compute blackbox controller action
                     action = bb_controller.get_next_action(
-                        observations, deterministic=False, dones=dones, 
+                        observations, deterministic=True, dones=dones, 
                         goal_pos=goal_pos)
 
                     # 2. @TODO: Compute future estimates
@@ -129,8 +129,8 @@ def run_exp(exp_config: str) -> None:
                     env.habitat_env.sim
                 )
 
-                if is_valid_map:
-                    infos[0]["top_down_map"]["map"] = top_down_map
+                # if is_valid_map:
+                #     infos[0]["top_down_map"]["map"] = top_down_map
 
                 frame = observations_to_image(observations[0], infos[0])
                 frames.append(frame)
@@ -138,7 +138,9 @@ def run_exp(exp_config: str) -> None:
             if (i+1) % config.LOG_UPDATE == 0:
                 logger.info(f"Metrics for {i+1} episodes")
                 for k, v in results.items():
-                    logger.info(f"\t -- avg. {k}: {np.asarray(np.mean(v))}")
+                    if "collision_count" in k:
+                        logger.info(f"\t-- {k}: {v}")
+                    logger.info(f"\t-- avg. {k}: {np.asarray(np.mean(v))}")
 
             # save episode
             if frames and len(config.VIDEO_OPTION) > 0:
@@ -151,8 +153,11 @@ def run_exp(exp_config: str) -> None:
                 images_to_video(frames, config.VIDEO_DIR, file)
 
         logger.info(f"Done. Metrics for {i+1} episodes")
-        for k, v in results.items():
-            logger.info(f"\t -- avg. {k}: {np.asarray(np.mean(v))}")
+        if (i+1) % config.LOG_UPDATE == 0:
+            for k, v in results.items():
+                if "collision_count" in k:
+                    logger.info(f"\t-- {k}: {v}")
+                logger.info(f"\t-- avg. {k}: {np.asarray(np.mean(v))}")
 
         env.close()
 
