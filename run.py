@@ -110,7 +110,6 @@ def run_exp(exp_config: str) -> None:
                     safe, is_valid_map, top_down_map = verify.verify_safety(
                         infos, 6, action, verbose=False)
 
-                # safe = False
                 if not safe and config.CONTROLLERS.use_fallback:
                     # 4. Compute fallback controller action
                     action, backup_is_done = fb_controller.get_next_action(
@@ -172,6 +171,8 @@ def main():
     )
     args = parser.parse_args()
     run_exp(**vars(args))
+
+    # run_exp("config/rl_exp_cpu.yaml")
 
 if __name__ == "__main__":
     main()
