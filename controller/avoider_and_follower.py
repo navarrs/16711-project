@@ -13,10 +13,12 @@ from typing import Optional
 
 from matplotlib import pyplot as plt  ########################################
 
-class SimpleObstacleAvoider():
+
+# I think my goal radius should be much smaller 
+class AvoiderAndFollower():
     """
-        Simple backup controller that focuses on avoiding obstacles.
-        When triggered, this turns to one side until the obstacle is gone, and takes exactly one step forward before returning command 
+        Controller that greatly prioritizes safety and will avoid obstacles at all costs.
+            Secondary purpose is to head towards the target waypoint
     """
     def __init__(self, 
                  config: Config,
@@ -39,8 +41,9 @@ class SimpleObstacleAvoider():
         self._num_sequential_turns = 0
         self._num_sequential_circles = 0
         self._adjusted_proximity_threshold = self._proximity_threshold # Used to prevent endless spirals
- 
 
+        self._is_avoiding = False
+ 
         self.build_controller()
  
     def build_controller(self) -> None:
@@ -55,14 +58,24 @@ class SimpleObstacleAvoider():
         self._num_sequential_turns = 0
         self._num_sequential_circles = 0
         self._adjusted_proximity_threshold = self._proximity_threshold
+        self._is_avoiding = False
+
+    def step_towards_goal(self, observations) -> int:
+        """ Aligns the vehicle with the direction to waypoint, or takes a step if already aligned """
+        rho, phi = observations[0]["pointgoal_with_gps_compass"]
+
+        if phi > self._turn_threshold:
+            return HabitatSimActions.TURN_LEFT
+        elif phi < -self._turn_threshold:
+            return HabitatSimActions.TURN_RIGHT
+        else:
+            return HabitatSimActions.MOVE_FORWARD
 
     def determine_turn_direction(self, observations) -> bool:
         """
             Determines which direction to turn in in order to avoid the obstacle
                 (Currently turns in the direction which has less obstacle)
-              Once direction has been established, checks to see if agent needs to continue turning or is safe    
-
-              TODO Should we force at least two turns...?        
+              Once direction has been established, checks to see if agent needs to continue turning or is safe      
         """
 
         # Check if the obstacle has been avoided
@@ -73,10 +86,17 @@ class SimpleObstacleAvoider():
 
         close_pixels = (depth_map < self._adjusted_proximity_threshold) & (depth_map > 0) # Need to avoid counting the gaping pit into the abyss
 
-        if (np.sum(close_pixels)) <= self._pixel_count_threshold: # If it has been avoided, then we did it! Hooray!
-            is_safe = True
-            self.reset()
-            next_action = HabitatSimActions.MOVE_FORWARD # Step to prevent endless jitter
+
+        if (np.sum(close_pixels)) <= self._pixel_count_threshold: # No obstacle. Yay!
+            if self._is_avoiding:  # If we were running an avoidance sequence, finish with a forward step to avoid endless jitter
+                is_safe = True
+                self.reset()
+                next_action = HabitatSimActions.MOVE_FORWARD # Step to prevent endless jitter
+                self._is_avoiding = False
+            else: # Weren't trying to avoid anything. NOTE This is the ONLY step that actually tries to navigate to a waypoint
+                next_action = self.step_towards_goal(observations)
+                is_safe = True 
+                self._is_avoiding = False
 
         else: 
             # If the turn direction has not yet been established, determine if you should be turning left or right
@@ -91,6 +111,7 @@ class SimpleObstacleAvoider():
             is_safe = False 
             next_action = self._turn_direction
             self._num_sequential_turns += 1
+            self._is_avoiding = True
 
         
             if self._num_sequential_turns >= self._turns_per_circle:
@@ -101,7 +122,6 @@ class SimpleObstacleAvoider():
             
         return next_action, is_safe
         
-
     def get_next_action(self, 
                          observations,
                          deterministic: Optional[bool] = False, 

@@ -17,8 +17,9 @@ from typing import Optional, Union
 
 from controller.simple_unit_controller import SimpleUnitController
 from controller.simple_obstacle_avoider import SimpleObstacleAvoider
+from controller.avoider_and_follower import AvoiderAndFollower
 
-SUPPORTED_CONTROLLERS = ["simple_controller", "ppo_controller", "simple_unit_controller", "simple_obstacle_avoider"]
+SUPPORTED_CONTROLLERS = ["simple_controller", "ppo_controller", "simple_unit_controller", "simple_obstacle_avoider", "avoider_and_follower"]
 
 class ControllerType(Enum):
     BLACKBOX = 0
@@ -59,6 +60,9 @@ class BaseController():
                 self._config, self._sim)
         elif controller_id == "simple_obstacle_avoider":
             controller = SimpleObstacleAvoider(
+                self._config, self._sim)
+        elif controller_id == "avoider_and_follower":
+            controller = AvoiderAndFollower(
                 self._config, self._sim)
                 
                         
