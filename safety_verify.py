@@ -33,6 +33,7 @@ class Verify:
     def __init__(self, cell_size=.125):
         self.cell_size = cell_size
         self.primitive_lib = np.zeros((3, 3, 1))
+        self.collision_label = 6
 
     def gen_primitive_lib(self, velocities, steers, dt=1):
         velocities /= self.cell_size
@@ -90,16 +91,16 @@ class Verify:
                         
                         if index[0] < 1 or index[0] >= collision_map.shape[0] - 1 or index[1] < 1 or index[1] >= collision_map.shape[1] - 1:
                             num_collisions += branching_factor**(T-t-1)
-                        elif collision_map[index] == 0 or collision_map[index] == 12:
+                        elif collision_map[index] == 0 or collision_map[index] == self.collision_label:
                             num_collisions += branching_factor**(T-t-1)
-                            out_map[index] = 12
+                            out_map[index] = self.collision_label
                             # out_map = setSquare(index, out_map, 7)
                             # print(index)
                             # logger.info(f"in collision")
                         else:
                             new_open_set.append(new_pose)
                             # out_map = setSquare(index, out_map, 10)
-                            out_map[index] = 10
+                            out_map[index] = 12
 
                 if len(new_open_set) == 0:
                     break

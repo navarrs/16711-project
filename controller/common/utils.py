@@ -65,7 +65,9 @@ def observations_to_image(observation: Dict, info: Dict) -> np.ndarray:
     if "top_down_map" in info:
         top_down_map = info["top_down_map"]["map"]
         top_down_map = maps.colorize_topdown_map(
-            top_down_map, info["top_down_map"]["fog_of_war_mask"]
+            top_down_map, 
+            # info["top_down_map"]["fog_of_war_mask"]
+            None
         )
         map_agent_pos = info["top_down_map"]["agent_map_coord"]
         top_down_map = maps.draw_agent(

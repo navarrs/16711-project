@@ -94,7 +94,7 @@ def run_exp(exp_config: str) -> None:
             episode_id = env.current_episode.episode_id
 
             backup_is_done = True
-
+            is_stopped = False
             while not env.habitat_env.episode_over:
                 fallback_takeover = False
 
@@ -117,11 +117,13 @@ def run_exp(exp_config: str) -> None:
                     fallback_takeover = True
 
                 # 5. Take a step
-                observations = [env.step(action)]
+                if action == HabitatSimActions.STOP:
+                    is_stopped = True
+                obs = [env.step(action)]
 
                 # 6. Unroll results
                 observations, results, dones, infos = get_results(
-                    observations, 
+                    obs, 
                     results, 
                     action, 
                     fallback_takeover,
@@ -133,6 +135,15 @@ def run_exp(exp_config: str) -> None:
 
                 frame = observations_to_image(observations[0], infos[0])
                 frames.append(frame)
+                
+            if not is_stopped:
+                observations, results, dones, infos = get_results(
+                    obs, 
+                    results, 
+                    HabitatSimActions.STOP, 
+                    fallback_takeover,
+                    env.habitat_env.sim
+                )
 
             if (i+1) % config.LOG_UPDATE == 0:
                 logger.info(f"Metrics for {i+1} episodes")
