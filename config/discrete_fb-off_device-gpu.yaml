@@ -1,0 +1,131 @@
+# ------------------------------------------------------------------------------
+ENVIRONMENT:
+  MAX_EPISODE_STEPS: 500
+  ITERATOR_OPTIONS:
+    SHUFFLE: False
+# ------------------------------------------------------------------------------
+SIMULATOR:
+  TYPE: Sim-v0
+  AGENT_0:
+    SENSORS: [DEPTH_SENSOR, RGB_SENSOR]
+  FORWARD_STEP_SIZE: 0.25
+  TURN_ANGLE: 15
+  HABITAT_SIM_V0:
+    GPU_DEVICE_ID: 0
+  DEPTH_SENSOR:
+    WIDTH: 256
+    HEIGHT: 256
+  RGB_SENSOR:
+    WIDTH: 224
+    HEIGHT: 224
+  HABITAT_SIM_V0:
+    ALLOW_SLIDING: True
+    # ENABLE_PHYSICS: True
+    GPU_DEVICE_ID: 0
+    GPU_GPU: False
+    PHYSICS_CONFIG_FILE: config/physics.json
+# ------------------------------------------------------------------------------
+TASK:
+  TYPE: Nav-v0
+  SUCCESS_DISTANCE: 1.0
+  SENSORS: [
+    POINTGOAL_WITH_GPS_COMPASS_SENSOR,
+    HEADING_SENSOR,
+  ]
+  POINTGOAL_SENSOR:
+    GOAL_FORMAT: POLAR
+    DIMENSIONALITY: 2
+  GOAL_SENSOR_UUID: "pointgoal"
+  POSSIBLE_ACTIONS: [
+    STOP,
+    MOVE_FORWARD,
+    TURN_LEFT,
+    TURN_RIGHT
+  ]
+  MEASUREMENTS: [
+    DISTANCE_TO_GOAL,
+    TOP_DOWN_MAP,
+    SUCCESS,
+    COLLISIONS
+  ]
+  SUCCESS:
+    SUCCESS_DISTANCE: 1.0
+# ------------------------------------------------------------------------------
+DATASET:
+  TYPE: PointNav-v1
+  SPLIT: train
+  # DATA_PATH: habitat-lab/data/datasets/pointnav/habitat-test-scenes/v1/{split}/{split}.json.gz
+  DATA_PATH: habitat-lab/data/datasets/pointnav/MP3D/v1/{split}/{split}.json.gz
+  SCENES_DIR: habitat-lab/data/scene_datasets/
+# ------------------------------------------------------------------------------
+RL:
+  PPO: 
+    checkpoint: "models/ppo.pth"
+    clip_param: 0.1
+    ppo_epoch: 4
+    # This was 4 in the paper
+    num_mini_batch: 1
+    value_loss_coef: 0.5
+    entropy_coef: 0.01
+    lr: 2.5e-4
+    eps: 1.e-5
+    max_grad_norm: 0.5
+    num_steps: 128
+    hidden_size: 512
+    use_gae: True
+    gamma: 0.99
+    tau: 0.95
+    use_linear_clip_decay: True
+    use_linear_lr_decay: True
+    reward_window_size: 50
+    use_normalized_advantage: False
+# ------------------------------------------------------------------------------
+MODEL:
+  POLICY: "seq2seq"
+  # on GT trajectories in the training set
+  use_cpu: False
+  RGB_ENCODER:
+    cnn_type: "TorchVisionResNet50"
+    output_size: 256
+  DEPTH_ENCODER:
+    # 'VlnResnetDepthEncoder' or 'SimpleDepthCNN'
+    cnn_type: "VlnResnetDepthEncoder"
+    output_size: 128
+    # type of resnet to use
+    backbone: "resnet50"
+    # path to DDPPO resnet weights
+    ddppo_checkpoint: "models/depth_resnet50.pth"
+  STATE_ENCODER:
+    hidden_size: 512
+    rnn_type: "GRU"
+  SEQ2SEQ:
+    use_prev_action: False
+  PROGRESS_MONITOR:
+    use: False
+    alpha: 1.0  # loss multiplier
+# ------------------------------------------------------------------------------
+MOTION_CONTROL:
+  velocity_control: False
+  use_fallback: False
+  SAFETY_VERIFY:
+    add_forecast: False
+    # cell_size: 0.125
+    cell_size: 0.1024
+    T: 6
+    velocities: [0.25]
+    # -pi/12, pi/12, num
+    steers: [-0.2618, 0.2618, 3]    
+    dt: 1
+  CONTROLLERS:
+    blackbox_id: "ppo_controller"
+    fallback_id: "simple_obstacle_avoider"
+# ------------------------------------------------------------------------------
+SIMULATOR_GPU_ID: 0
+USE_CPU: False
+TORCH_GPU_ID: 0
+LOG_FILE: "ppo_with_fb_off.log"
+LOG_UPDATE: 1
+NUM_EPISODES: 10
+NUM_PROCESSES: 1
+VIDEO_DIR: out/ppo_with_fb_off/
+VIDEO_OPTION: ["disk"]
