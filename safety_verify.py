@@ -33,7 +33,9 @@ class Verify:
     def __init__(self, cell_size=.125):
         self.cell_size = cell_size
         self.primitive_lib = np.zeros((3, 3, 1))
-        self.collision_label = 6
+        self.collision_label = 12
+        self.no_collision_label = 13
+        logger.info(f"Initialized Safety Verification System")
 
     def gen_primitive_lib(self, velocities, steers, dt=1):
         velocities /= self.cell_size
@@ -47,6 +49,7 @@ class Verify:
             lib[:, :, i] = SE2Transformation(
                 np.array([[0, 1]]).T*velocity*dt, steer)
         self.primitive_lib = lib
+        logger.info(f"Generated primitive lib")
 
     def verify_safety(self, infos, T, action, threshold=.3, verbose=False):
         if (self.primitive_lib == 0).all():
@@ -62,7 +65,8 @@ class Verify:
             out_map = np.copy(collision_map)
             branching_factor = self.primitive_lib.shape[2]
             # print("Init Index: ", infos[0]['top_down_map']['agent_map_coord'])
-            agent_pose = (-infos[0]['top_down_map']['agent_map_coord'][1],infos[0]['top_down_map']['agent_map_coord'][0])
+            agent_pose = (-infos[0]['top_down_map']['agent_map_coord'][1],
+                          infos[0]['top_down_map']['agent_map_coord'][0])
             currentpose = SE2Transformation(agent_pose , infos[0]['top_down_map']['agent_angle'])
             # print("Current Pose")
             # print(currentpose)
@@ -100,7 +104,7 @@ class Verify:
                         else:
                             new_open_set.append(new_pose)
                             # out_map = setSquare(index, out_map, 10)
-                            out_map[index] = 12
+                            out_map[index] = self.no_collision_label
 
                 if len(new_open_set) == 0:
                     break

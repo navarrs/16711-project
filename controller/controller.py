@@ -39,9 +39,9 @@ class BaseController():
     def build_controller(self, controller_type: ControllerType) -> None:
         
         if controller_type == ControllerType.BLACKBOX:
-            controller_id = self._config.ROBOT_CONTROL.controllers.blackbox_id
+            controller_id = self._config.MOTION_CONTROL.CONTROLLERS.blackbox_id
         elif controller_type == ControllerType.FALLBACK:
-            controller_id = self._config.ROBOT_CONTROL.controllers.fallback_id
+            controller_id = self._config.MOTION_CONTROL.CONTROLLERS.fallback_id
         else:
             raise ValueError
         

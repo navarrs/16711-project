@@ -66,8 +66,8 @@ def observations_to_image(observation: Dict, info: Dict) -> np.ndarray:
         top_down_map = info["top_down_map"]["map"]
         top_down_map = maps.colorize_topdown_map(
             top_down_map, 
-            info["top_down_map"]["fog_of_war_mask"]
-            # None
+            # info["top_down_map"]["fog_of_war_mask"]
+            None
         )
         map_agent_pos = info["top_down_map"]["agent_map_coord"]
         top_down_map = maps.draw_agent(
@@ -100,38 +100,13 @@ def observations_to_image(observation: Dict, info: Dict) -> np.ndarray:
                 top_down_map = draw_mask(top_down_map, 
                                          color=np.array([0, 0, 255]))
                 text += " controller=black-box "
-           
+        
+        if "steps_taken" in info:
+            steps = info["steps_taken"]
+            text += f" steps_taken={steps} "
             
         frame = np.concatenate((egocentric_view, top_down_map), axis=1)
-    
-    
-    # if "top_down_map_verified" in info:
-    #     top_down_map = info["top_down_map_verified"]
-    #     top_down_map = maps.colorize_topdown_map(
-    #         top_down_map, info["top_down_map"]["fog_of_war_mask"]
-    #     )
-    #     map_agent_pos = info["top_down_map"]["agent_map_coord"]
-    #     top_down_map = maps.draw_agent(
-    #         image=top_down_map,
-    #         agent_center_coord=map_agent_pos,
-    #         agent_rotation=info["top_down_map"]["agent_angle"],
-    #         agent_radius_px=top_down_map.shape[0] // 16,
-    #     )
 
-    #     if top_down_map.shape[0] > top_down_map.shape[1]:
-    #         top_down_map = np.rot90(top_down_map, 1)
-
-    #     # scale top down map to align with rgb view
-    #     old_h, old_w, _ = top_down_map.shape
-    #     top_down_height = observation_size
-    #     top_down_width = int(float(top_down_height) / old_h * old_w)
-    #     # cv2 resize (dsize is width first)
-    #     top_down_map = cv2.resize(
-    #         top_down_map,
-    #         (top_down_width, top_down_height),
-    #         interpolation=cv2.INTER_CUBIC,
-    #     )
-    #     frame = np.concatenate((egocentric_view, top_down_map), axis=1)
     frame = append_text_to_image(frame, text)
     return frame
 
