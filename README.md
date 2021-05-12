@@ -1,4 +1,4 @@
-# kdc_project
+# 16-711 KDC - Final Project
 
 # setup
 
