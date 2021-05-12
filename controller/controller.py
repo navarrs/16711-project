@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import os
 
-from controller.models.policies.seq2seq_policy import Seq2SeqPolicy
+from controller.hierarchical_controller import HierarchicalController
 from controller.ppo_controller import PPOController
 from controller.simple_controller import SimpleController
 from enum import Enum
@@ -15,7 +15,8 @@ from habitat.config import Config
 from habitat_baselines.rl.ppo import PPO
 from typing import Optional, Union
 
-SUPPORTED_CONTROLLERS = ["simple_controller", "ppo_controller"]
+SUPPORTED_CONTROLLERS = ["simple_controller", "ppo_controller",
+                         "hierarchical_controller"]
 
 class ControllerType(Enum):
     BLACKBOX = 0
@@ -48,11 +49,12 @@ class BaseController():
         if controller_id == "ppo_controller":
             controller = PPOController(
                 self._config, self._obs_space, self._act_space)
+        if controller_id == "hierarchical_controller":
+            controller = HierarchicalController(
+                self._config, self._obs_space, self._act_space)
         elif controller_id == "simple_controller":
             controller = SimpleController(
                 self._config, self._sim)
-            
-        # @TODO: add other controllers 
         
         logger.info(
             f"Initialized {ControllerType.BLACKBOX} with id: {controller_id}")

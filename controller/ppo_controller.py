@@ -50,7 +50,7 @@ class PPOController():
         """
         Sets the controller up
         """
-        model_cfg = self._config.MODEL
+        model_cfg = self._config.MODEL_HIGHLEVEL
         model_cfg.defrost()
         model_cfg.TORCH_GPU_ID = self._config.TORCH_GPU_ID
         model_cfg.freeze()

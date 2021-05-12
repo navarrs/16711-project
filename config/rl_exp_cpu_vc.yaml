@@ -1,6 +1,6 @@
 # ------------------------------------------------------------------------------
 ENVIRONMENT:
-  MAX_EPISODE_STEPS: 500
+  MAX_EPISODE_STEPS: 1000
   ITERATOR_OPTIONS:
     SHUFFLE: True
 # ------------------------------------------------------------------------------
@@ -19,8 +19,8 @@ SIMULATOR:
     WIDTH: 224
     HEIGHT: 224
   HABITAT_SIM_V0:
-    ALLOW_SLIDING: True
-    ENABLE_PHYSICS: True
+    # ALLOW_SLIDING: True
+    # ENABLE_PHYSICS: True
     GPU_DEVICE_ID: 0
     GPU_GPU: False
     PHYSICS_CONFIG_FILE: config/physics.json
@@ -53,7 +53,8 @@ TASK:
 DATASET:
   TYPE: PointNav-v1
   SPLIT: train
-  DATA_PATH: habitat-lab/data/datasets/pointnav/habitat-test-scenes/v1/{split}/{split}.json.gz
+  # DATA_PATH: habitat-lab/data/datasets/pointnav/habitat-test-scenes/v1/{split}/{split}.json.gz
+  DATA_PATH: habitat-lab/data/datasets/pointnav/MP3D/v1/{split}/{split}.json.gz
   SCENES_DIR: habitat-lab/data/scene_datasets/
 # ------------------------------------------------------------------------------
 RL:
@@ -78,9 +79,32 @@ RL:
     reward_window_size: 50
     use_normalized_advantage: False
 # ------------------------------------------------------------------------------
-MODEL:
+IL:
+  checkpoint_path: "model_ckpt/dagger.pth"
+  DAGGER:
+    lr: 1e-4
+    iterations: 1
+    epochs: 10
+    update_size: 5000
+    batch_size: 3
+    p: 1.0
+    time_step: 1.0 / (30)
+    LMDB_MAP_SIZE: 2.7e12
+    LMDB_EVAL_SIZE: 1e11
+    tbptt_steps: 100
+    split_dim: 0
+    COLLECT_DATA_SPLIT: 'train'
+    INTER_MODULE_ATTN: False
+    LMDB_COMMIT_FREQUENCY: 500
+    LMDB_STORE_FREQUENCY: 5
+    USE_IW: True
+    PRELOAD_LMDB_FEATURES: False
+    LMDB_FEATURES_DIR: "data/trajectories_dirs/debug/trajectories.lmdb"
+    LMDB_EVAL_DIR: "data/trajectories_dirs/debug/trajectories.lmdb"
+    LOAD_FROM_CKPT: False
+# ------------------------------------------------------------------------------
+MODEL_HIGH_LEVEL:
   POLICY: "seq2seq"
-  # on GT trajectories in the training set
   use_cpu: True
   inflection_weight_coef: 3.2
   ablate_depth: False
@@ -106,13 +130,41 @@ MODEL:
     use: False
     alpha: 1.0  # loss multiplier
 # ------------------------------------------------------------------------------
+MODEL_LOW_LEVEL:
+  POLICY: "cont_seq2seq"
+  num_actions: 2
+  # on GT trajectories in the training set
+  use_cpu: True
+  inflection_weight_coef: 3.2
+  ablate_depth: False
+  ablate_rgb: False
+  ablate_pointgoal: False
+  RGB_ENCODER:
+    cnn_type: "TorchVisionResNet50"
+    output_size: 256
+    resnet_output_size: 256
+  DEPTH_ENCODER:
+    # 'VlnResnetDepthEncoder' or 'SimpleDepthCNN'
+    cnn_type: "VlnResnetDepthEncoder"
+    output_size: 128
+    # type of resnet to use
+    backbone: "resnet50"
+    # path to DDPPO resnet weights
+    ddppo_checkpoint: "model_ckpt/depth_resnet50.pth"
+  STATE_ENCODER:
+    hidden_size: 512
+    rnn_type: "LSTM"
+  PROGRESS_MONITOR:
+    use: False
+    alpha: 1.0  # loss multiplier
+# ------------------------------------------------------------------------------
 ROBOT:
   velocity_control: True
   config: data/objects/locobot_merged
 # ------------------------------------------------------------------------------
 CONTROLLERS:
   use_fallback: True
-  blackbox_id: "ppo_controller"
+  blackbox_id: "hierarchical_controller" 
   fallback_id: "todo"
 # ------------------------------------------------------------------------------
 SIMULATOR_GPU_ID: 0
@@ -120,7 +172,7 @@ USE_CPU: True
 TORCH_GPU_ID: 0
 LOG_FILE: "rl_controller.log"
 LOG_UPDATE: 1
-NUM_EPISODES: 1
+NUM_EPISODES: 10
 NUM_PROCESSES: 1
 VIDEO_DIR: out/rl_controller/
 VIDEO_OPTION: ["disk"]

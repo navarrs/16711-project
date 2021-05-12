@@ -5,24 +5,24 @@
 1. Install anaconda or miniconda and create an environment:
 
 ```
-    conda create -n kdc python=3.6
-    conda activate kdc
+    conda create -n KDC python=3.6 cmake=3.14.0
+    python -m pip install -r requirements.txt
 ```
 
 ### Dependencies
 
-Install [Habitat-Sim](https://github.com/facebookresearch/habitat-sim) v0.1.6:
 
+Install [Habitat-Sim](https://github.com/facebookresearch/habitat-sim):
 ```
-   conda install -c aihabitat -c conda-forge habitat-sim=0.1.6 headless
+   git submodule add git@github.com:zubair-irshad/habitat-sim.git
+   cd habitat-sim
+   python setup.py install --headless --with-cuda
 ```
 
-Install [Habitat-Lab](https://github.com/facebookresearch/habitat-lab/tree/v0.1.5) v0.1.5:
-
+Install [Habitat-Lab](https://github.com/facebookresearch/habitat-lab/):
 ```
-   git submodule add git@github.com:facebookresearch/habitat-lab.git
+   git submodule add git@github.com:zubair-irshad/habitat-lab.git
    cd habitat-lab
-   git checkout v0.1.5
    python -m pip install -r requirements.txt
    python -m pip install -r habitat_baselines/rl/requirements.txt
    python -m pip install -r habitat_baselines/rl/ddppo/requirements.txt
