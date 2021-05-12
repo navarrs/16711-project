@@ -5,7 +5,6 @@
 import argparse
 import habitat
 import os
-import torch
 import numpy as np
 import safety_verify
 
@@ -16,12 +15,10 @@ from habitat import logger
 from habitat.utils.visualizations.utils import images_to_video
 from habitat.sims.habitat_simulator.actions import HabitatSimActions
 
-from matplotlib import pyplot as plt
-
 BLACK_LIST = ["top_down_map", "fog_of_war_mask", "agent_map_coord"]
 
 
-def get_results(observations, results, action, fallback_takeover, sim):
+def get_results(observations, results, action, is_fallback_on, sim):
     observations, rewards, dones, infos = [
         list(x) for x in zip(*observations)
     ]
@@ -39,14 +36,20 @@ def get_results(observations, results, action, fallback_takeover, sim):
                 results[k].append(v)
     if results.get("collision_distance") == None:
         results["collision_disance"] = []
-    
+
     collision_distance = sim.distance_to_closest_obstacle(
         sim.get_agent_state().position, 1.0)
     results["collision_distance"].append(collision_distance)
 
-    infos[0]["fallback_takeover"] = fallback_takeover
+    infos[0]["is_fallback_on"] = is_fallback_on
     return observations, results, dones, infos
 
+def log(n_episodes, results):
+    logger.info(f"Metrics for {n_episodes+1} episodes")
+    for k, v in results.items():
+        if "collision_count" in k:
+            logger.info(f"\t-- {k}: {v}")
+        logger.info(f"\t-- avg. {k}: {np.asarray(np.mean(v))}")
 
 def run_exp(exp_config: str) -> None:
     config = habitat.get_config(config_paths=exp_config)
@@ -62,19 +65,22 @@ def run_exp(exp_config: str) -> None:
                               act_space=env.action_space,
                               sim=env.habitat_env.sim)
 
+        robotc = config.ROBOT_CONTROL
+
         # ----------------------------------------------------------------------
         # Blackbox controller
         bb_controller = base.build_controller(ControllerType.BLACKBOX)
 
         # ----------------------------------------------------------------------
         # Fallback controller
-        fb_controller = base.build_controller(ControllerType.FALLBACK)
+        if robotc.use_fallback:
+            fb_controller = base.build_controller(ControllerType.FALLBACK)
 
-        # ----------------------------------------------------------------------
-        # Safety verification
-        verify = safety_verify.Verify(cell_size=.125)
-        verify.gen_primitive_lib(
-            np.array([.25]), np.linspace(-np.pi/12, np.pi/12, 3))
+            # ------------------------------------------------------------------
+            # Safety verification
+            verify = safety_verify.Verify(cell_size=0.125)
+            verify.gen_primitive_lib(
+                np.array([.25]), np.linspace(-np.pi/12, np.pi/12, 3))
 
         # ----------------------------------------------------------------------
         # Running episodes
@@ -87,88 +93,86 @@ def run_exp(exp_config: str) -> None:
             frames = []
             observations = [env.reset()]
             bb_controller.reset()
-            infos = None
-            dones = None
-            goal_pos = env.current_episode.goals[0].position
-            scene_id = env.current_episode.scene_id
+            done = None
+            info = None
             episode_id = env.current_episode.episode_id
-
-            backup_is_done = True
+            actions_taken = 0
+            
+            is_backup_done = True
             is_stopped = False
+            is_valid_map = False
+            is_safe = True
+            logger.info(f"Running episode={episode_id}")
             while not env.habitat_env.episode_over:
-                fallback_takeover = False
+                is_fallback_on = False
 
-                if backup_is_done:
-                    # 1. Compute blackbox controller action
-                    action = bb_controller.get_next_action(
-                        observations, deterministic=True, dones=dones, 
-                        goal_pos=goal_pos)
+                # Compute blackbox controller action
+                if is_backup_done:
+                    # ----------------------------------------------------------
+                    (
+                        high_level_action,  # HabitatSimAction (FORWARD, LEFT, RIGHT, STOP)
+                        low_level_action,   # VelocityControl (lin. + ang. velocity)
+                        low_stop_action,    # VelocityControlStop
+                    ) = bb_controller.get_next_action(
+                        observations, deterministic=False, done=done
+                    )
 
-                    # 2. @TODO: Compute future estimates
+                    if config.ROBOT_CONTROL.velocity_control:
+                        action = low_level_action
+                    else:
+                        action = high_level_action
 
                     # 3. Verify safety of reachable set
-                    safe, is_valid_map, top_down_map = verify.verify_safety(
-                        infos, 6, action, verbose=False)
+                    if robotc.use_fallback:
+                        is_safe, is_valid_map, top_down_map = verify.verify_safety(
+                            info, 6, action, verbose=False)
 
-                if not safe and config.CONTROLLERS.use_fallback:
-                    # 4. Compute fallback controller action
-                    action, backup_is_done = fb_controller.get_next_action(
+                # 4. Run fallback
+                if not is_safe and robotc.use_fallback:
+                    action, is_backup_done = fb_controller.get_next_action(
                         observations)
-                    fallback_takeover = True
+                    is_fallback_on = True
 
                 # 5. Take a step
-                if action == HabitatSimActions.STOP:
+                if (
+                    low_stop_action == 1.0 or
+                    action == HabitatSimActions.STOP or
+                    actions_taken > config.ENVIRONMENT.MAX_EPISODE_STEPS
+                ):
                     is_stopped = True
+                actions_taken += 1
                 obs = [env.step(action)]
 
                 # 6. Unroll results
-                observations, results, dones, infos = get_results(
-                    obs, 
-                    results, 
-                    action, 
-                    fallback_takeover,
-                    env.habitat_env.sim
+                observations, results, done, info = get_results(
+                    obs, results, action, is_fallback_on, env.habitat_env.sim
                 )
 
-                # if is_valid_map:
-                #     infos[0]["top_down_map"]["map"] = top_down_map
+                if is_valid_map and robotc.safety_verify.add_forecast:
+                    info[0]["top_down_map"]["map"] = top_down_map
 
-                frame = observations_to_image(observations[0], infos[0])
+                frame = observations_to_image(observations[0], info[0])
                 frames.append(frame)
-                
+
             if not is_stopped:
-                observations, results, dones, infos = get_results(
-                    obs, 
-                    results, 
-                    HabitatSimActions.STOP, 
-                    fallback_takeover,
+                observations, results, done, info = get_results(
+                    obs, results, HabitatSimActions.STOP, is_fallback_on, 
                     env.habitat_env.sim
                 )
 
             if (i+1) % config.LOG_UPDATE == 0:
-                logger.info(f"Metrics for {i+1} episodes")
-                for k, v in results.items():
-                    if "collision_count" in k:
-                        logger.info(f"\t-- {k}: {v}")
-                    logger.info(f"\t-- avg. {k}: {np.asarray(np.mean(v))}")
+                log(i+1, results)
 
             # save episode
             if frames and len(config.VIDEO_OPTION) > 0:
-                if config.CONTROLLERS.use_fallback:
-                    file = f"{i}_episode_id={episode_id}_with_fallback"
+                if robotc.use_fallback:
+                    file = f"{i}_episode={episode_id}_with_fallback"
                 else:
-                    file = f"{i}_episode_id={episode_id}"
-
+                    file = f"{i}_episode={episode_id}"
                 frames = resize(frames)
                 images_to_video(frames, config.VIDEO_DIR, file)
 
-        logger.info(f"Done. Metrics for {i+1} episodes")
-        if (i+1) % config.LOG_UPDATE == 0:
-            for k, v in results.items():
-                if "collision_count" in k:
-                    logger.info(f"\t-- {k}: {v}")
-                logger.info(f"\t-- avg. {k}: {np.asarray(np.mean(v))}")
-
+        log(i+1, results)
         env.close()
 
 
@@ -183,7 +187,6 @@ def main():
     args = parser.parse_args()
     run_exp(**vars(args))
 
-    # run_exp("config/rl_exp_cpu.yaml")
 
 if __name__ == "__main__":
     main()

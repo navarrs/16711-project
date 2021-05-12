@@ -66,8 +66,8 @@ def observations_to_image(observation: Dict, info: Dict) -> np.ndarray:
         top_down_map = info["top_down_map"]["map"]
         top_down_map = maps.colorize_topdown_map(
             top_down_map, 
-            # info["top_down_map"]["fog_of_war_mask"]
-            None
+            info["top_down_map"]["fog_of_war_mask"]
+            # None
         )
         map_agent_pos = info["top_down_map"]["agent_map_coord"]
         top_down_map = maps.draw_agent(
@@ -91,8 +91,8 @@ def observations_to_image(observation: Dict, info: Dict) -> np.ndarray:
             interpolation=cv2.INTER_CUBIC,
         )
             
-        if "fallback_takeover" in info:
-            if info["fallback_takeover"]:
+        if "is_fallback_on" in info:
+            if info["is_fallback_on"]:
                 top_down_map = draw_mask(top_down_map, 
                                          color=np.array([0, 255, 0]))
                 text += " controller=fallback "

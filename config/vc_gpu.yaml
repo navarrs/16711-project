@@ -2,7 +2,7 @@
 ENVIRONMENT:
   MAX_EPISODE_STEPS: 1000
   ITERATOR_OPTIONS:
-    SHUFFLE: True
+    SHUFFLE: False
 # ------------------------------------------------------------------------------
 SIMULATOR:
   TYPE: Sim-v0
@@ -19,7 +19,7 @@ SIMULATOR:
     WIDTH: 224
     HEIGHT: 224
   HABITAT_SIM_V0:
-    # ALLOW_SLIDING: True
+    ALLOW_SLIDING: True
     # ENABLE_PHYSICS: True
     GPU_DEVICE_ID: 0
     GPU_GPU: False
@@ -46,6 +46,7 @@ TASK:
     DISTANCE_TO_GOAL,
     TOP_DOWN_MAP,
     SUCCESS,
+    COLLISIONS
   ]
   SUCCESS:
     SUCCESS_DISTANCE: 3.0
@@ -162,11 +163,11 @@ ROBOT_CONTROL:
     fallback_id: "todo"
 # ------------------------------------------------------------------------------
 SIMULATOR_GPU_ID: 0
-USE_CPU: True
+USE_CPU: False
 TORCH_GPU_ID: 0
-LOG_FILE: "rl_controller.log"
+LOG_FILE: "pcontroller.log"
 LOG_UPDATE: 1
 NUM_EPISODES: 10
 NUM_PROCESSES: 1
-VIDEO_DIR: out/rl_controller/
+VIDEO_DIR: out/vcontroller/
 VIDEO_OPTION: ["disk"]

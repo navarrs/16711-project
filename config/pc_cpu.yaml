@@ -2,7 +2,7 @@
 ENVIRONMENT:
   MAX_EPISODE_STEPS: 500
   ITERATOR_OPTIONS:
-    SHUFFLE: True
+    SHUFFLE: False
 # ------------------------------------------------------------------------------
 SIMULATOR:
   TYPE: Sim-v0
@@ -18,13 +18,19 @@ SIMULATOR:
   RGB_SENSOR:
     WIDTH: 224
     HEIGHT: 224
+  HABITAT_SIM_V0:
+    ALLOW_SLIDING: True
+    # ENABLE_PHYSICS: True
+    GPU_DEVICE_ID: 0
+    GPU_GPU: False
+    PHYSICS_CONFIG_FILE: config/physics.json
 # ------------------------------------------------------------------------------
 TASK:
   TYPE: Nav-v0
   SUCCESS_DISTANCE: 3.0
   SENSORS: [
     POINTGOAL_WITH_GPS_COMPASS_SENSOR,
-    HEADING_SENSOR
+    HEADING_SENSOR,
   ]
   POINTGOAL_SENSOR:
     GOAL_FORMAT: POLAR
@@ -40,23 +46,21 @@ TASK:
     DISTANCE_TO_GOAL,
     TOP_DOWN_MAP,
     SUCCESS,
+    COLLISIONS
   ]
   SUCCESS:
     SUCCESS_DISTANCE: 3.0
 # ------------------------------------------------------------------------------
-ROBOT:
-  velocity_control: False
-  config: data/objects/locobot_merged
-# ------------------------------------------------------------------------------
 DATASET:
   TYPE: PointNav-v1
   SPLIT: train
-  DATA_PATH: habitat-lab/data/datasets/pointnav/habitat-test-scenes/v1/{split}/{split}.json.gz
+  # DATA_PATH: habitat-lab/data/datasets/pointnav/habitat-test-scenes/v1/{split}/{split}.json.gz
+  DATA_PATH: habitat-lab/data/datasets/pointnav/MP3D/v1/{split}/{split}.json.gz
   SCENES_DIR: habitat-lab/data/scene_datasets/
 # ------------------------------------------------------------------------------
 RL:
-  ppo_checkpoint: "model_ckpt/ppo.pth"
   PPO: 
+    checkpoint: "models/ppo.pth"
     clip_param: 0.1
     ppo_epoch: 4
     # This was 4 in the paper
@@ -79,11 +83,7 @@ RL:
 MODEL:
   POLICY: "seq2seq"
   # on GT trajectories in the training set
-  use_cpu: True
-  inflection_weight_coef: 3.2
-  ablate_depth: False
-  ablate_rgb: False
-  ablate_pointgoal: False
+  use_cpu: False
   RGB_ENCODER:
     cnn_type: "TorchVisionResNet50"
     output_size: 256
@@ -104,17 +104,19 @@ MODEL:
     use: False
     alpha: 1.0  # loss multiplier
 # ------------------------------------------------------------------------------
-CONTROLLERS:
-  blackbox_id: "ppo_controller"
-  fallback_id: "simple_obstacle_avoider"
-  use_fallback: True
+ROBOT_CONTROL:
+  velocity_control: False
+  controllers:
+    use_fallback: True
+    blackbox_id: "ppo_controller"
+    fallback_id: "simple_obstacle_avoider"
 # ------------------------------------------------------------------------------
 SIMULATOR_GPU_ID: 0
 USE_CPU: True
 TORCH_GPU_ID: 0
-LOG_FILE: "rl_controller.log"
-LOG_UPDATE: 1
-NUM_EPISODES: 5
+LOG_FILE: "pcontroller.log"
+LOG_UPDATE: 5
+NUM_EPISODES: 10
 NUM_PROCESSES: 1
-VIDEO_DIR: out/rl_controller/
+VIDEO_DIR: out/pcontroller/
 VIDEO_OPTION: ["disk"]
