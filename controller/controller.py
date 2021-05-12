@@ -9,8 +9,16 @@ from enum import Enum
 from habitat import logger
 from habitat.config import Config
 
+<<<<<<< HEAD
 SUPPORTED_CONTROLLERS = [
     "simple_controller", "ppo_controller", "hierarchical_controller"]
+=======
+from controller.simple_unit_controller import SimpleUnitController
+from controller.simple_obstacle_avoider import SimpleObstacleAvoider
+from controller.avoider_and_follower import AvoiderAndFollower
+
+SUPPORTED_CONTROLLERS = ["simple_controller", "ppo_controller", "simple_unit_controller", "simple_obstacle_avoider", "avoider_and_follower"]
+>>>>>>> feat_bb_controller
 
 class ControllerType(Enum):
     BLACKBOX = 0
@@ -51,8 +59,27 @@ class BaseController():
             controller = HierarchicalController(
                 self._config, self._obs_space, self._act_space)
         elif controller_id == "simple_controller":
+<<<<<<< HEAD
             controller = SimpleController(self._config, self._sim)
         
         logger.info(
             f"Initialized {ControllerType.BLACKBOX} with id: {controller_id}")
         return controller    
+=======
+            controller = SimpleController(
+                self._config, self._sim)
+        elif controller_id == "simple_unit_controller":
+            controller = SimpleUnitController(
+                self._config, self._sim)
+        elif controller_id == "simple_obstacle_avoider":
+            controller = SimpleObstacleAvoider(
+                self._config, self._sim)
+        elif controller_id == "avoider_and_follower":
+            controller = AvoiderAndFollower(
+                self._config, self._sim)
+                
+                        
+        logger.info(
+            f"Initialized {controller_type} with id: {controller_id}")
+        return controller    
+>>>>>>> feat_bb_controller
