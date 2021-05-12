@@ -2,11 +2,11 @@
 ## Safety Verification of Black-Box Controllers
 
 RL Blackbox Controller
-<p align="center"> <img src="./readme/ppo_with_fb_off.gif" width="800" /> </p>
+<p align="center"> <img src="./readme/ppo_with_fb_off.gif" width="500" /> </p>
 
 
 RL Blackbox + Safety Verification
-<p align="center"> <img src="./readme/ppo_with_fb_on.gif" width="800" /> </p>
+<p align="center"> <img src="./readme/ppo_with_fb_on.gif" width="500" /> </p>
 
 
 # Setup
