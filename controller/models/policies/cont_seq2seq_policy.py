@@ -1,10 +1,10 @@
 # ------------------------------------------------------------------------------
-# @file     seq2seq_policy.py
-# @brief    implements a seq2seq policy for a high-level controller
+# @file     cont_seq2seq_policy.py
+# @brief    implements a seq2seq policy for a low-level controller
 # ------------------------------------------------------------------------------
-import abc
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from controller.models.encoders.simple_cnns import (
     SimpleDepthCNN,
@@ -12,44 +12,34 @@ from controller.models.encoders.simple_cnns import (
 )
 from controller.models.encoders.resnet_encoders import (
     VlnResnetDepthEncoder, 
-    TorchVisionResNet50
+    CTorchVisionResNet50
 )
 from gym import Space
-from controller.models.policies.policy import BasePolicy
 from habitat import Config
 from habitat_baselines.rl.models.rnn_state_encoder import RNNStateEncoder
-from habitat_baselines.rl.ppo.policy import Net
 
 
-class Seq2SeqPolicy(BasePolicy):
-    def __init__(
-        self, observation_space: Space, action_space: Space, model_config: Config
-    ):
-        super().__init__(
-            Seq2SeqNet(
-                observation_space=observation_space,
-                model_config=model_config,
-                num_actions=action_space.n,
-            ),
-            action_space.n,
-        )
-
-
-class Seq2SeqNet(Net):
-    r"""
-    A baseline sequence to sequence network that concatenates instruction,
+class ContinuosSeq2SeqPolicy(nn.Module):
+    r"""A baseline sequence to sequence network that concatenates instruction,
     RGB, and depth encodings before decoding an action distribution with an RNN.
-
     Modules:
         Depth encoder
         RGB encoder
         RNN state encoder
     """
 
-    def __init__(self, observation_space: Space, model_config: Config, num_actions):
+    def __init__(
+        self, observation_space: Space, num_actions: int, num_sub_tasks:int, 
+        model_config: Config, batch_size: int
+    ):
         super().__init__()
         self.model_config = model_config
-
+        self.batch_size = batch_size
+        device = (
+            torch.device("cuda", model_config.TORCH_GPU_ID)
+            if torch.cuda.is_available()
+            else torch.device("cpu")
+        )   
         # Init the depth encoder
         assert model_config.DEPTH_ENCODER.cnn_type in [
             "SimpleDepthCNN",
@@ -78,39 +68,22 @@ class Seq2SeqNet(Net):
                 observation_space, model_config.RGB_ENCODER.output_size
             )
         elif model_config.RGB_ENCODER.cnn_type == "TorchVisionResNet50":
-            self.device = (
-                torch.device("cuda", model_config.TORCH_GPU_ID)
-                if torch.cuda.is_available() and not model_config.use_cpu
-                else torch.device("cpu")
-            )
-            self.rgb_encoder = TorchVisionResNet50(
-                observation_space, model_config.RGB_ENCODER.output_size, self.device 
+            self.rgb_encoder = CTorchVisionResNet50(
+                observation_space, 
+                model_config.RGB_ENCODER.output_size, 
+                model_config.RGB_ENCODER.resnet_output_size, 
+                device
             )
 
-        if model_config.SEQ2SEQ.use_prev_action:
-            self.prev_action_embedding = nn.Embedding(num_actions + 1, 32)
+        self.sub_task_embedding = nn.Embedding(num_sub_tasks+1, 32, padding_idx=4)
 
-        # Init the RNN state decoder       
+        # Init the RNN state decoder
         rnn_input_size = (
             + model_config.DEPTH_ENCODER.output_size
             + model_config.RGB_ENCODER.output_size
+            + self.sub_task_embedding.embedding_dim
         )
-        
-        if "pointgoal_with_gps_compass" in observation_space.spaces:
-            rnn_input_size += observation_space.spaces["pointgoal_with_gps_compass"].shape[0]
-            
-        if "rel_pointgoal" in observation_space.spaces:
-            rnn_input_size += observation_space.spaces["rel_pointgoal"].shape[0]
-            
-        if "pointgoal" in observation_space.spaces:
-            rnn_input_size += observation_space.spaces["pointgoal"].shape[0]
 
-        if "heading" in observation_space.spaces:
-            rnn_input_size += observation_space.spaces["heading"].shape[0]
-        
-        if model_config.SEQ2SEQ.use_prev_action:
-            rnn_input_size += self.prev_action_embedding.embedding_dim
-        
         self.state_encoder = RNNStateEncoder(
             input_size=rnn_input_size,
             hidden_size=model_config.STATE_ENCODER.hidden_size,
@@ -123,8 +96,8 @@ class Seq2SeqNet(Net):
         )
 
         self._init_layers()
-
-        self.train()
+        self.linear = nn.Linear(self.model_config.STATE_ENCODER.hidden_size, num_actions)
+        self.stop_linear = nn.Linear(self.model_config.STATE_ENCODER.hidden_size, 1)
 
     @property
     def output_size(self):
@@ -142,36 +115,42 @@ class Seq2SeqNet(Net):
         nn.init.kaiming_normal_(self.progress_monitor.weight, nonlinearity="tanh")
         nn.init.constant_(self.progress_monitor.bias, 0)
 
-    def forward(self, observations, rnn_hidden_states, prev_actions, masks):
+    def forward(self, batch):
         r"""
+        instruction_embedding: [batch_size x INSTRUCTION_ENCODER.output_size]
         depth_embedding: [batch_size x DEPTH_ENCODER.output_size]
         rgb_embedding: [batch_size x RGB_ENCODER.output_size]
         """
+
+        observations, rnn_hidden_states, prev_actions, masks, discrete_actions = batch
+        del batch
+
         depth_embedding = self.depth_encoder(observations)
         rgb_embedding = self.rgb_encoder(observations)
-                
-        x = torch.cat([depth_embedding, rgb_embedding], dim=1)
-        
-        pointgoal_encoding = torch.zeros(
-            [1, 2], dtype=torch.float32, device=self.device)
-        heading_encoding = torch.zeros(
-            [1, 2], dtype=torch.float32, device=self.device)
-        if "pointgoal_with_gps_compass" in observations:
-            pointgoal_encoding = observations["pointgoal_with_gps_compass"]
-        elif "pointgoal" in observations:
-            pointgoal_encoding = observations["pointgoal"]
-        
-        if "heading" in observations:
-            heading_encoding = observations["heading"]
-        
-        x = torch.cat([x, pointgoal_encoding, heading_encoding], dim=1)
-    
-        if self.model_config.SEQ2SEQ.use_prev_action:
-            prev_actions_embedding = self.prev_action_embedding(
-                ((prev_actions.float() + 1) * masks).long().view(-1)
-            )
-            x = torch.cat([x, prev_actions_embedding], dim=1)
+
+        # discrete_action_mask = discrete_actions ==0
+        # discrete_actions = (discrete_actions-1).masked_fill_(discrete_action_mask, 4)
+
+        sub_tasks_embedding = self.sub_task_embedding(discrete_actions.view(-1))
+        # sub_tasks_embedding = self.sub_task_embedding(discrete_actions)
+
+        x = torch.cat([depth_embedding, rgb_embedding, sub_tasks_embedding], dim=1)
+        del depth_embedding, rgb_embedding
+        masks = masks[:,0]
 
         x, rnn_hidden_states = self.state_encoder(x, rnn_hidden_states, masks)
 
-        return x, rnn_hidden_states
+        if self.model_config.PROGRESS_MONITOR.use and AuxLosses.is_active():
+            progress_hat = torch.tanh(self.progress_monitor(x))
+            progress_loss = F.mse_loss(
+                progress_hat.squeeze(1), observations["progress"], reduction="none"
+            )
+            AuxLosses.register_loss(
+                "progress_monitor",
+                progress_loss,
+                self.model_config.PROGRESS_MONITOR.alpha,
+            )
+
+        out = self.linear(x)
+        stop_out = self.stop_linear(x)
+        return out, stop_out, rnn_hidden_states

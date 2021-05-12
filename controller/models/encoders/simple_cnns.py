@@ -1,5 +1,8 @@
+# ------------------------------------------------------------------------------
+# @file     simple_cnns.py
+# @brief    implements simple image encoders
+# ------------------------------------------------------------------------------
 import numpy as np
-import torch
 import torch.nn as nn
 
 from controller.common.utils import Flatten

@@ -15,11 +15,6 @@ from typing import Optional, Union
 
 
 class PPOController():
-    @classmethod
-    def from_base(cls, controller):
-        return cls(
-            controller.config, controller.obs_space, controller.act_space)
-
     def __init__(
         self, config: Config,
         obs_space: Space,
@@ -86,8 +81,7 @@ class PPOController():
             use_normalized_advantage=ppo.use_normalized_advantage,
         )
 
-        ckpt_dict = torch.load(
-            self._config.RL.ppo_checkpoint, map_location="cpu")
+        ckpt_dict = torch.load(ppo.checkpoint, map_location="cpu")
         self._agent.load_state_dict(ckpt_dict["state_dict_agent"])
         self._actor_critic = self._agent.actor_critic
         self.reset()
@@ -122,7 +116,7 @@ class PPOController():
         ------
             action
         """
-        dones = kwargs.get('dones', None)
+        dones = kwargs.get('done', None)
         if not dones is None:
             self.update_masks(dones)
 
@@ -142,7 +136,9 @@ class PPOController():
                 deterministic=deterministic,
             )
             self._prev_action = action
-        return action.item()
+        
+        # logger.info(f"action {action.item()}")
+        return action.item(), None, None
 
     def update_masks(self, dones) -> None:
         self._not_done_masks = torch.tensor(

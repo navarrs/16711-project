@@ -1,21 +1,22 @@
 # ------------------------------------------------------------------------------
-# @brief    controller base class
+# @file     controller.py
+# @brief    implements base class used to instantiate controllers by ID
 # ------------------------------------------------------------------------------
-import numpy as np
-import torch
-import os
-
-from controller.models.policies.seq2seq_policy import Seq2SeqPolicy
+from controller.hierarchical_controller import HierarchicalController
 from controller.ppo_controller import PPOController
 from controller.simple_controller import SimpleController
+from controller.simple_unit_controller import SimpleUnitController
+from controller.simple_obstacle_avoider import SimpleObstacleAvoider
+from controller.avoider_and_follower import AvoiderAndFollower
+
 from enum import Enum
-from gym import Space
 from habitat import logger
 from habitat.config import Config
-from habitat_baselines.rl.ppo import PPO
-from typing import Optional, Union
 
-SUPPORTED_CONTROLLERS = ["simple_controller", "ppo_controller"]
+
+SUPPORTED_CONTROLLERS = [
+    "simple_controller", "ppo_controller", "hierarchical_controller",
+    "simple_unit_controller", "simple_obstacle_avoider", "avoider_and_follower"]
 
 class ControllerType(Enum):
     BLACKBOX = 0
@@ -38,22 +39,36 @@ class BaseController():
     def build_controller(self, controller_type: ControllerType) -> None:
         
         if controller_type == ControllerType.BLACKBOX:
-            controller_id = self._config.CONTROLLERS.blackbox_id
+            controller_id = self._config.ROBOT_CONTROL.controllers.blackbox_id
+        elif controller_type == ControllerType.FALLBACK:
+            controller_id = self._config.ROBOT_CONTROL.controllers.fallback_id
         else:
-            controller_id = self._config.CONTROLLERS.fallback_id
+            raise ValueError
         
         assert controller_id in SUPPORTED_CONTROLLERS, \
-            f"controller: {controller_id} not in supported controllers: {SUPPORTED_CONTROLLERS}"
+            "controller: {} not in supported controllers: {}".format(
+                controller_id, SUPPORTED_CONTROLLERS
+            )
         
         if controller_id == "ppo_controller":
             controller = PPOController(
                 self._config, self._obs_space, self._act_space)
+        if controller_id == "hierarchical_controller":
+            controller = HierarchicalController(
+                self._config, self._obs_space, self._act_space)
         elif controller_id == "simple_controller":
-            controller = SimpleController(
+            controller = SimpleController(self._config, self._sim)
+        elif controller_id == "simple_unit_controller":
+            controller = SimpleUnitController(
                 self._config, self._sim)
-            
-        # @TODO: add other controllers 
-        
+        elif controller_id == "simple_obstacle_avoider":
+            controller = SimpleObstacleAvoider(
+                self._config, self._sim)
+        elif controller_id == "avoider_and_follower":
+            controller = AvoiderAndFollower(
+                self._config, self._sim)
+         
         logger.info(
-            f"Initialized {ControllerType.BLACKBOX} with id: {controller_id}")
-        return controller    
+            f"Initialized {controller_type} with id: {controller_id}")
+        
+        return controller

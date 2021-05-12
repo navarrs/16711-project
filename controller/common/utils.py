@@ -4,10 +4,18 @@ import torch.nn as nn
 import numpy as np
 from habitat.core.utils import try_cv2_import
 from habitat.utils.visualizations import maps
-from habitat.utils.visualizations.utils import draw_collision
+from habitat.utils.visualizations.utils import draw_collision, append_text_to_image
 
 cv2 = try_cv2_import()
 
+def draw_mask(
+    view: np.ndarray, alpha: float = 0.4, color: np.ndarray = np.array([255, 0, 0])) -> np.ndarray:
+    strip_width = view.shape[0] // 20
+    mask = np.ones(view.shape)
+    mask[strip_width:-strip_width, strip_width:-strip_width] = 0
+    mask = mask == 1
+    view[mask] = (alpha * color + (1.0 - alpha) * view)[mask]
+    return view
 
 def observations_to_image(observation: Dict, info: Dict) -> np.ndarray:
     r"""Generate image of single frame from observation and info
@@ -22,6 +30,7 @@ def observations_to_image(observation: Dict, info: Dict) -> np.ndarray:
     """
     egocentric_view = []
     observation_size = -1
+    
     if "rgb" in observation:
         observation_size = observation["rgb"].shape[0]
         rgb = observation["rgb"][:, :, :3]
@@ -44,15 +53,21 @@ def observations_to_image(observation: Dict, info: Dict) -> np.ndarray:
     egocentric_view = np.concatenate(egocentric_view, axis=1)
 
     # draw collision
+    text = "state="
     if "collisions" in info and info["collisions"]["is_collision"]:
         egocentric_view = draw_collision(egocentric_view)
-
+        text += "collision "
+    else:
+        text += "no-collision "
+        
     frame = egocentric_view
 
     if "top_down_map" in info:
         top_down_map = info["top_down_map"]["map"]
         top_down_map = maps.colorize_topdown_map(
-            top_down_map, info["top_down_map"]["fog_of_war_mask"]
+            top_down_map, 
+            info["top_down_map"]["fog_of_war_mask"]
+            # None
         )
         map_agent_pos = info["top_down_map"]["agent_map_coord"]
         top_down_map = maps.draw_agent(
@@ -75,7 +90,49 @@ def observations_to_image(observation: Dict, info: Dict) -> np.ndarray:
             (top_down_width, top_down_height),
             interpolation=cv2.INTER_CUBIC,
         )
+            
+        if "is_fallback_on" in info:
+            if info["is_fallback_on"]:
+                top_down_map = draw_mask(top_down_map, 
+                                         color=np.array([0, 255, 0]))
+                text += " controller=fallback "
+            else:
+                top_down_map = draw_mask(top_down_map, 
+                                         color=np.array([0, 0, 255]))
+                text += " controller=black-box "
+           
+            
         frame = np.concatenate((egocentric_view, top_down_map), axis=1)
+    
+    
+    # if "top_down_map_verified" in info:
+    #     top_down_map = info["top_down_map_verified"]
+    #     top_down_map = maps.colorize_topdown_map(
+    #         top_down_map, info["top_down_map"]["fog_of_war_mask"]
+    #     )
+    #     map_agent_pos = info["top_down_map"]["agent_map_coord"]
+    #     top_down_map = maps.draw_agent(
+    #         image=top_down_map,
+    #         agent_center_coord=map_agent_pos,
+    #         agent_rotation=info["top_down_map"]["agent_angle"],
+    #         agent_radius_px=top_down_map.shape[0] // 16,
+    #     )
+
+    #     if top_down_map.shape[0] > top_down_map.shape[1]:
+    #         top_down_map = np.rot90(top_down_map, 1)
+
+    #     # scale top down map to align with rgb view
+    #     old_h, old_w, _ = top_down_map.shape
+    #     top_down_height = observation_size
+    #     top_down_width = int(float(top_down_height) / old_h * old_w)
+    #     # cv2 resize (dsize is width first)
+    #     top_down_map = cv2.resize(
+    #         top_down_map,
+    #         (top_down_width, top_down_height),
+    #         interpolation=cv2.INTER_CUBIC,
+    #     )
+    #     frame = np.concatenate((egocentric_view, top_down_map), axis=1)
+    frame = append_text_to_image(frame, text)
     return frame
 
 
