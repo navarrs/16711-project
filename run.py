@@ -17,7 +17,6 @@ from controller.controller import BaseController, ControllerType
 from habitat import logger
 from habitat.utils.visualizations.utils import images_to_video
 from habitat.sims.habitat_simulator.actions import HabitatSimActions
-from habitat_baselines.common.utils import generate_video
 
 BLACK_LIST = ["top_down_map", "fog_of_war_mask", "agent_map_coord"]
 
@@ -95,23 +94,27 @@ def run_exp(exp_config: str) -> None:
             frames = []
             observations = [env.reset()]
             bb_controller.reset()
-            dones = None
-            infos = None
+            done = None
+            info = None
             goal_pos = env.current_episode.goals[0].position
             scene_id = env.current_episode.scene_id
             episode_id = env.current_episode.episode_id
 
-            if "van-gogh" in scene_id:
-                continue
-                
-            max_actions = 1000
+            max_actions = 100
             actions_taken = 0
             while not env.habitat_env.episode_over:
 
                 # Compute blackbox controller action
                 # --------------------------------------------------------------
-                action, vc, low_stop = bb_controller.get_next_action(
-                    observations, deterministic=True)
+                (
+                    high_level_action,  # HabitatSimAction (FORWARD, LEFT, RIGHT, STOP)
+                    low_level_action,   # VelocityControl
+                    low_stop_action,    # VelocityControlStop 
+                ) = bb_controller.get_next_action(
+                    observations, 
+                    deterministic=True, 
+                    done=done
+                )
                 
         #         # @TODO: convert the action to vel_control
         #         # --------------------------------------------------------------
@@ -125,42 +128,46 @@ def run_exp(exp_config: str) -> None:
         #             # action = fb_controller.get_next_action(observations)
         #             vc_fb = fb_controller.get_next_action(observations)
 
-                if action == HabitatSimActions.STOP or actions_taken > max_actions:
-                    break
-                actions_taken +=1
+                # if config.ROBOT_CONTROL.velocity_control:
+                #     action = low_level_action
+                # else:
+                #     action = high_level_action
                 
-                # Take a step
-                observations = [env.step(vc)]
-                observations, results, dones, infos = unroll_results(
-                    observations, results, action)
-                frame = observations_to_image(observations[0], infos[0])
-                frames.append(frame)
+                # if high_level_action == HabitatSimActions.STOP or actions_taken > max_actions:
+                #     break
+                # actions_taken +=1
                 
-            # if (i+1) % config.LOG_UPDATE == 0:
-            #     logger.info(f"Metrics for {i+1} episodes")
-            #     for k, v in results.items():
-            #         logger.info(f"\t -- avg. {k}: {np.asarray(np.mean(v))}")
+        #         # Take a step
+        #         observations = [env.step(action)]
+        #         observations, results, done, info = unroll_results(
+        #             observations, results, high_level_action)
+                
+        #         frame = observations_to_image(observations[0], info[0])
+        #         frames.append(frame)
+                
+        #     if (i+1) % config.LOG_UPDATE == 0:
+        #         logger.info(f"Metrics for {i+1} episodes")
+        #         for k, v in results.items():
+        #             logger.info(f"\t -- avg. {k}: {np.asarray(np.mean(v))}")
 
-            # # save episode
-            if frames and len(config.VIDEO_OPTION) > 0:
-                frames = resize(frames)
-                time_step = 30
-                images_to_video(
-                    frames,
-                    config.VIDEO_DIR,
-                    "path_id={}={}".format(
-                        episode.episode_id, i
-                    ),
-                    fps=int(1.0/time_step)
-                )
+        #     # # save episode
+        #     if frames and len(config.VIDEO_OPTION) > 0:
+        #         frames = resize(frames)
+        #         time_step = 30
+        #         images_to_video(
+        #             frames,
+        #             config.VIDEO_DIR,
+        #             "path_id={}={}".format(
+        #                 episode.episode_id, i
+        #             ),
+        #             fps=int(1.0/time_step)
+        #         )
                
-                
-                
-        logger.info(f"Done. Metrics for {i+1} episodes")
-        for k, v in results.items():
-            logger.info(f"\t -- avg. {k}: {np.asarray(np.mean(v))}")
+        # logger.info(f"Done. Metrics for {i+1} episodes")
+        # for k, v in results.items():
+        #     logger.info(f"\t -- avg. {k}: {np.asarray(np.mean(v))}")
 
-        env.close()
+        # env.close()
 
 
 def main():

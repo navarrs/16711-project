@@ -1,22 +1,16 @@
 # ------------------------------------------------------------------------------
-# @brief    controller base class
+# @file     controller.py
+# @brief    implements base class used to instantiate controllers by ID
 # ------------------------------------------------------------------------------
-import numpy as np
-import torch
-import os
-
 from controller.hierarchical_controller import HierarchicalController
 from controller.ppo_controller import PPOController
 from controller.simple_controller import SimpleController
 from enum import Enum
-from gym import Space
 from habitat import logger
 from habitat.config import Config
-from habitat_baselines.rl.ppo import PPO
-from typing import Optional, Union
 
-SUPPORTED_CONTROLLERS = ["simple_controller", "ppo_controller",
-                         "hierarchical_controller"]
+SUPPORTED_CONTROLLERS = [
+    "simple_controller", "ppo_controller", "hierarchical_controller"]
 
 class ControllerType(Enum):
     BLACKBOX = 0
@@ -39,12 +33,16 @@ class BaseController():
     def build_controller(self, controller_type: ControllerType) -> None:
         
         if controller_type == ControllerType.BLACKBOX:
-            controller_id = self._config.CONTROLLERS.blackbox_id
+            controller_id = self._config.ROBOT_CONTROL.controllers.blackbox_id
+        elif controller_type == ControllerType.FALLBACK:
+            controller_id = self._config.ROBOT_CONTROL.controllers.fallback_id
         else:
-            controller_id = self._config.CONTROLLERS.fallback_id
+            raise ValueError
         
         assert controller_id in SUPPORTED_CONTROLLERS, \
-            f"controller: {controller_id} not in supported controllers: {SUPPORTED_CONTROLLERS}"
+            "controller: {} not in supported controllers: {}".format(
+                controller_id, SUPPORTED_CONTROLLERS
+            )
         
         if controller_id == "ppo_controller":
             controller = PPOController(
@@ -53,8 +51,7 @@ class BaseController():
             controller = HierarchicalController(
                 self._config, self._obs_space, self._act_space)
         elif controller_id == "simple_controller":
-            controller = SimpleController(
-                self._config, self._sim)
+            controller = SimpleController(self._config, self._sim)
         
         logger.info(
             f"Initialized {ControllerType.BLACKBOX} with id: {controller_id}")

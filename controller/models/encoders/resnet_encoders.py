@@ -1,3 +1,8 @@
+# ------------------------------------------------------------------------------
+# @file       resnet_encoders.py
+# @brief      implements base class used to encode images
+# @reference: VLN-CE 2020
+# ------------------------------------------------------------------------------
 import numpy as np
 import torch
 import torch.nn as nn

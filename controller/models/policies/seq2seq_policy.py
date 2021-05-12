@@ -1,7 +1,10 @@
+# ------------------------------------------------------------------------------
+# @file     seq2seq_policy.py
+# @brief    implements a seq2seq policy for a high-level controller
+# ------------------------------------------------------------------------------
 import abc
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from controller.models.encoders.simple_cnns import (
     SimpleDepthCNN,
@@ -33,11 +36,11 @@ class Seq2SeqPolicy(BasePolicy):
 
 
 class Seq2SeqNet(Net):
-    r"""A baseline sequence to sequence network that concatenates instruction,
+    r"""
+    A baseline sequence to sequence network that concatenates instruction,
     RGB, and depth encodings before decoding an action distribution with an RNN.
 
     Modules:
-        Instruction encoder
         Depth encoder
         RGB encoder
         RNN state encoder
@@ -146,12 +149,7 @@ class Seq2SeqNet(Net):
         """
         depth_embedding = self.depth_encoder(observations)
         rgb_embedding = self.rgb_encoder(observations)
-        
-        if self.model_config.ablate_depth:
-            depth_embedding = depth_embedding * 0.0
-        if self.model_config.ablate_rgb:
-            rgb_embedding = rgb_embedding * 0.0
-            
+                
         x = torch.cat([depth_embedding, rgb_embedding], dim=1)
         
         pointgoal_encoding = torch.zeros(
@@ -163,12 +161,8 @@ class Seq2SeqNet(Net):
         elif "pointgoal" in observations:
             pointgoal_encoding = observations["pointgoal"]
         
-        # @TODO: remove this
         if "heading" in observations:
             heading_encoding = observations["heading"]
-
-        if self.model_config.ablate_pointgoal:
-            pointgoal_encoding = pointgoal_encoding * 0.0
         
         x = torch.cat([x, pointgoal_encoding, heading_encoding], dim=1)
     

@@ -1,3 +1,7 @@
+# ------------------------------------------------------------------------------
+# @file     environments.py
+# @brief    instantiates a simple environment for the agents
+# ------------------------------------------------------------------------------
 import habitat
 
 class SimpleRLEnv(habitat.RLEnv):

@@ -1,4 +1,7 @@
-import abc
+# ------------------------------------------------------------------------------
+# @file     cont_seq2seq_policy.py
+# @brief    implements a seq2seq policy for a low-level controller
+# ------------------------------------------------------------------------------
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -12,24 +15,23 @@ from controller.models.encoders.resnet_encoders import (
     CTorchVisionResNet50
 )
 from gym import Space
-from controller.models.policies.policy import BasePolicy
 from habitat import Config
 from habitat_baselines.rl.models.rnn_state_encoder import RNNStateEncoder
-from habitat_baselines.rl.ppo.policy import Net
 
 
 class ContinuosSeq2SeqPolicy(nn.Module):
     r"""A baseline sequence to sequence network that concatenates instruction,
     RGB, and depth encodings before decoding an action distribution with an RNN.
     Modules:
-        Instruction encoder
         Depth encoder
         RGB encoder
         RNN state encoder
     """
 
-    def __init__(self, observation_space: Space, num_actions: int, 
-                 num_sub_tasks:int, model_config: Config, batch_size: int):
+    def __init__(
+        self, observation_space: Space, num_actions: int, num_sub_tasks:int, 
+        model_config: Config, batch_size: int
+    ):
         super().__init__()
         self.model_config = model_config
         self.batch_size = batch_size
@@ -123,16 +125,8 @@ class ContinuosSeq2SeqPolicy(nn.Module):
         observations, rnn_hidden_states, prev_actions, masks, discrete_actions = batch
         del batch
 
-        # instructions = self.pad_instructions(observations)
-        # del observations['instruction']
         depth_embedding = self.depth_encoder(observations)
         rgb_embedding = self.rgb_encoder(observations)
-        # if self.model_config.ablate_instruction:
-        #     instruction_embedding = instruction_embedding * 0
-        if self.model_config.ablate_depth:
-            depth_embedding = depth_embedding * 0
-        if self.model_config.ablate_rgb:
-            rgb_embedding = rgb_embedding * 0
 
         # discrete_action_mask = discrete_actions ==0
         # discrete_actions = (discrete_actions-1).masked_fill_(discrete_action_mask, 4)

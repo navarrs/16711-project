@@ -4,7 +4,6 @@
 import habitat_sim
 import numpy as np
 import torch
-import os
 import magnum as mn 
 
 from controller.models.policies.cont_seq2seq_policy import ContinuosSeq2SeqPolicy
@@ -22,6 +21,7 @@ class HierarchicalController():
         self, config: Config,
         obs_space: Space,
         act_space: Space,
+        max_turn_speed: float = 1.0
     ) -> None:
         """
         RL-based + IL-based controller. RL takes high-level discrete actions and
@@ -57,23 +57,24 @@ class HierarchicalController():
             IL agent: performs low level actions based on the high level action
         """
         # Set the RL agent
-        hi_lvl_cfg = self._config.MODEL_HIGH_LEVEL
-        hi_lvl_cfg.defrost()
-        hi_lvl_cfg.TORCH_GPU_ID = self._config.TORCH_GPU_ID
-        hi_lvl_cfg.freeze()
-        if hi_lvl_cfg.POLICY == "seq2seq":
-            self._highlevel_controller = Seq2SeqPolicy(
+        high_level_config = self._config.MODEL_HIGH_LEVEL
+        high_level_config.defrost()
+        high_level_config.TORCH_GPU_ID = self._config.TORCH_GPU_ID
+        high_level_config.freeze()
+        if high_level_config.POLICY == "seq2seq":
+            self._high_level_controller = Seq2SeqPolicy(
                 observation_space=self._obs_space,
                 action_space=self._act_space,
-                model_config=hi_lvl_cfg,
+                model_config=high_level_config,
             )
+            logger.info(f"Loaded high-level {high_level_config.POLICY} policy")
         else:
-            logger.error(f"invalid policy {hi_lvl_cfg.POLICY}")
+            logger.error(f"Invalid high-level {high_level_config.POLICY} policy")
             raise ValueError
 
         ppo = self._config.RL.PPO
-        self._agent = PPO(
-            actor_critic=self._highlevel_controller,
+        self._ppo = PPO(
+            actor_critic=self._high_level_controller,
             clip_param=ppo.clip_param,
             ppo_epoch=ppo.ppo_epoch,
             num_mini_batch=ppo.num_mini_batch,
@@ -84,51 +85,53 @@ class HierarchicalController():
             max_grad_norm=ppo.max_grad_norm,
             use_normalized_advantage=ppo.use_normalized_advantage,
         )
-        ckpt_dict = torch.load(
-            self._config.RL.ppo_checkpoint, map_location="cpu")
-        self._agent.load_state_dict(ckpt_dict["state_dict_agent"])
-        self._highlevel_controller = self._agent.actor_critic
-        self._highlevel_controller.to(self._device)
-        self._highlevel_controller.eval()
+        
+        ckpt_dict = torch.load(ppo.checkpoint, map_location="cpu")
+        self._ppo.load_state_dict(ckpt_dict["state_dict_agent"])
+        
+        self._high_level_controller = self._ppo.actor_critic
+        self._high_level_controller.to(self._device)
+        self._high_level_controller.eval()
         logger.info(f"High-Level controller ready")
         
         
-        lo_lvl_cfg = self._config.MODEL_LOW_LEVEL
-        lo_lvl_cfg.defrost()
-        lo_lvl_cfg.TORCH_GPU_ID = self._config.TORCH_GPU_ID
-        lo_lvl_cfg.freeze()
-        if lo_lvl_cfg.POLICY == "cont_seq2seq":
-            self._lowlevel_controller = ContinuosSeq2SeqPolicy(
+        low_level_config = self._config.MODEL_LOW_LEVEL
+        low_level_config.defrost()
+        low_level_config.TORCH_GPU_ID = self._config.TORCH_GPU_ID
+        low_level_config.freeze()
+        dagger = self._config.IL.DAGGER
+        if low_level_config.POLICY == "cont_seq2seq":
+            self._low_level_controller = ContinuosSeq2SeqPolicy(
                 observation_space=self._obs_space,
-                model_config=lo_lvl_cfg,
+                model_config=low_level_config,
                 num_sub_tasks=self._act_space.n,
-                num_actions=2, 
-                batch_size=1
+                num_actions=dagger.num_actions, 
+                batch_size=dagger.batch_size
             )
+            logger.info(f"Loaded low-level {low_level_config.POLICY} policy")
         else:
-            logger.error(f"invalid policy {hi_lvl_cfg.POLICY}")
+            logger.error(f"Invalid low-level {low_level_config.POLICY} policy")
             raise ValueError
         
-        ckpt_dict = torch.load(
-            self._config.IL.checkpoint_path, map_location="cpu")
-        self._lowlevel_controller.load_state_dict(
+        ckpt_dict = torch.load(dagger.checkpoint, map_location="cpu")
+        self._low_level_controller.load_state_dict(
             ckpt_dict["low_level_state_dict"])
-        self._lowlevel_controller.to(self._device)
-        self._lowlevel_controller.eval()
-        logger.info(f"Low-Level controller ready")
+        self._low_level_controller.to(self._device)
+        self._low_level_controller.eval()
+        logger.info(f"low-Level controller ready")
 
         self.reset()
 
     def reset(self) -> None:
         self._highlevel_recurrent_hidden_states = torch.zeros(
-            self._highlevel_controller.net.num_recurrent_layers,
+            self._high_level_controller.net.num_recurrent_layers,
             self._config.NUM_PROCESSES,
             self._config.RL.PPO.hidden_size,
             device=self._device
         )
         
         self._lowlevel_recurrent_hidden_states = torch.zeros(
-            self._lowlevel_controller.state_encoder.num_recurrent_layers,
+            self._low_level_controller.state_encoder.num_recurrent_layers,
             self._config.NUM_PROCESSES,
             self._config.MODEL_LOW_LEVEL.STATE_ENCODER.hidden_size,
             device=self._device
@@ -165,8 +168,8 @@ class HierarchicalController():
             action
         """
         batch = batch_obs(observations, device=self._device)
-        self._highlevel_controller.eval()
-        self._lowlevel_controller.eval()
+        self._high_level_controller.eval()
+        self._low_level_controller.eval()
         
         with torch.no_grad():
             # high level controller 
@@ -175,7 +178,7 @@ class HierarchicalController():
                 action,
                 _,
                 self._highlevel_recurrent_hidden_states,
-            ) = self._highlevel_controller.act(
+            ) = self._high_level_controller.act(
                 batch,
                 self._highlevel_recurrent_hidden_states,
                 self._high_prev_action,
@@ -197,7 +200,7 @@ class HierarchicalController():
                 out_vel, 
                 out_stop, 
                 self._lowlevel_recurrent_hidden_states
-            ) = self._lowlevel_controller(low_batch)
+            ) = self._low_level_controller(low_batch)
             self._low_prev_action = out_vel
         
         
