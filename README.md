@@ -1,5 +1,5 @@
 # 16-711 KDC Final Project
-## Safety Verification of Black-Box Controllers
+## Safety Verification for Black-Box Controllers
 
 RL Blackbox Controller
 <p align="center"> <img src="./readme/ppo_with_fb_off.gif" width="500" /> </p>
